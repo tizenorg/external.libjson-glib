@@ -1,0 +1,337 @@
+<!-- ##### SECTION Title ##### -->
+JSON Node
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### ENUM JsonNodeType ##### -->
+<para>
+
+</para>
+
+@JSON_NODE_OBJECT: 
+@JSON_NODE_ARRAY: 
+@JSON_NODE_VALUE: 
+@JSON_NODE_NULL: 
+
+<!-- ##### STRUCT JsonNode ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### MACRO JSON_NODE_TYPE ##### -->
+<para>
+
+</para>
+
+@node: 
+
+
+<!-- ##### MACRO JSON_NODE_HOLDS ##### -->
+<para>
+
+</para>
+
+@node: 
+@t: 
+
+
+<!-- ##### MACRO JSON_NODE_HOLDS_VALUE ##### -->
+<para>
+
+</para>
+
+@node: 
+
+
+<!-- ##### MACRO JSON_NODE_HOLDS_OBJECT ##### -->
+<para>
+
+</para>
+
+@node: 
+
+
+<!-- ##### MACRO JSON_NODE_HOLDS_ARRAY ##### -->
+<para>
+
+</para>
+
+@node: 
+
+
+<!-- ##### MACRO JSON_NODE_HOLDS_NULL ##### -->
+<para>
+
+</para>
+
+@node: 
+
+
+<!-- ##### FUNCTION json_node_new ##### -->
+<para>
+
+</para>
+
+@type: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_copy ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_free ##### -->
+<para>
+
+</para>
+
+@node: 
+
+
+<!-- ##### FUNCTION json_node_set_array ##### -->
+<para>
+
+</para>
+
+@node: 
+@array: 
+
+
+<!-- ##### FUNCTION json_node_take_array ##### -->
+<para>
+
+</para>
+
+@node: 
+@array: 
+
+
+<!-- ##### FUNCTION json_node_get_array ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_dup_array ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_set_object ##### -->
+<para>
+
+</para>
+
+@node: 
+@object: 
+
+
+<!-- ##### FUNCTION json_node_take_object ##### -->
+<para>
+
+</para>
+
+@node: 
+@object: 
+
+
+<!-- ##### FUNCTION json_node_get_object ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_dup_object ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_set_value ##### -->
+<para>
+
+</para>
+
+@node: 
+@value: 
+
+
+<!-- ##### FUNCTION json_node_get_value ##### -->
+<para>
+
+</para>
+
+@node: 
+@value: 
+
+
+<!-- ##### FUNCTION json_node_set_boolean ##### -->
+<para>
+
+</para>
+
+@node: 
+@value: 
+
+
+<!-- ##### FUNCTION json_node_get_boolean ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_set_double ##### -->
+<para>
+
+</para>
+
+@node: 
+@value: 
+
+
+<!-- ##### FUNCTION json_node_get_double ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_set_int ##### -->
+<para>
+
+</para>
+
+@node: 
+@value: 
+
+
+<!-- ##### FUNCTION json_node_get_int ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_set_string ##### -->
+<para>
+
+</para>
+
+@node: 
+@value: 
+
+
+<!-- ##### FUNCTION json_node_get_string ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_dup_string ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_set_parent ##### -->
+<para>
+
+</para>
+
+@node: 
+@parent: 
+
+
+<!-- ##### FUNCTION json_node_get_parent ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_type_name ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_get_value_type ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_get_node_type ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_node_is_null ##### -->
+<para>
+
+</para>
+
+@node: 
+@Returns: 
+
+

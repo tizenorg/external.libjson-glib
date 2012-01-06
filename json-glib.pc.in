@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${exec_prefix}/include/json-glib-1.0
+
+Name: JSON-GLib
+Description: JSON Parser for GLib
+Version: @VERSION@
+Libs: -L${libdir} -ljson-glib-1.0
+Cflags: -I${includedir} -I${includedir}/json-glib/
+Requires: gobject-2.0

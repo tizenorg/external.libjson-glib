@@ -1,0 +1,7 @@
+libjson-glib (0.10.4-1slp2-1) unstable; urgency=low
+
+  * Initial Release
+  * Git: pkgs/l/libjson-glib
+  * Tag: libjson-glib_0.10.4-1slp2-1
+
+ -- MyoungJune Park <mj2004.park@samsung.com>  Wed, 07 Dec 2011 14:12:11 +0900
