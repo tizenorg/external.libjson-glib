@@ -1,11 +1,10 @@
-
 Name:       json-glib
 Summary:    JSON Parser for GLib
-Version:    0.0.1
-Release:    1
+Version:    0.10.4
+Release:    2.8
 Group:      System/Libraries
 License:    LGPLv2.1
-Source0:    libjson-glib_%{version}.tar.gz
+Source0:    json-glib-%{version}.tar.gz
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(gobject-2.0)
@@ -25,22 +24,14 @@ Requires:   %{name} = %{version}-%{release}
 %description devel
 Components for the json-glib package (devel)
 
-%package docs
-Summary:    Documentation components for the json-glib package
-Group:      Documentation
-Requires:   %{name} = %{version}-%{release}
-
-%description docs
-Components for the json-glib package (doc)
-
 
 %prep
-%setup -q -n lib%{name}-%{version}
+%setup -q 
 
 
 %build
 
-%configure --disable-static
+%configure --without-gnome --enable-sqllite=yes
 make %{?jobs:-j%jobs}
 
 %install
@@ -56,24 +47,14 @@ rm -rf %{buildroot}
 
 
 
-
-
-
+%docs_package
 
 
 %files
-%defattr(-,root,root,-)
 %doc COPYING
 /usr/lib/libjson-glib-1.0.so.*
 
-
 %files devel
-%defattr(-,root,root,-)
 /usr/include/json-glib-1.0/json-glib/*.h
 /usr/lib/*.so
 /usr/lib/pkgconfig/*.pc
-
-%files docs
-%defattr(-,root,root,-)
-%doc /usr/share/gtk-doc/html/json-glib/*
-
