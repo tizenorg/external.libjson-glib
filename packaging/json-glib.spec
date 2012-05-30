@@ -5,6 +5,7 @@ Release:    2.8
 Group:      System/Libraries
 License:    LGPLv2.1
 Source0:    json-glib-%{version}.tar.gz
+Source1001: packaging/json-glib.manifest 
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(gobject-2.0)
@@ -30,6 +31,7 @@ Components for the json-glib package (devel)
 
 
 %build
+cp %{SOURCE1001} .
 
 %configure --without-gnome --enable-sqllite=yes
 make %{?jobs:-j%jobs}
@@ -51,10 +53,12 @@ rm -rf %{buildroot}
 
 
 %files
+%manifest json-glib.manifest
 %doc COPYING
 /usr/lib/libjson-glib-1.0.so.*
 
 %files devel
+%manifest json-glib.manifest
 /usr/include/json-glib-1.0/json-glib/*.h
 /usr/lib/*.so
 /usr/lib/pkgconfig/*.pc
