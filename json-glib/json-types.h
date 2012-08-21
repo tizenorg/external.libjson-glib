@@ -173,6 +173,8 @@ typedef void (* JsonArrayForeach) (JsonArray  *array,
                                    JsonNode   *element_node,
                                    gpointer    user_data);
 
+
+
 /*
  * JsonNode
  */
@@ -185,8 +187,11 @@ GType                 json_node_get_value_type  (JsonNode     *node);
 void                  json_node_set_parent      (JsonNode     *node,
                                                  JsonNode     *parent);
 JsonNode *            json_node_get_parent      (JsonNode     *node);
+#if !GLIB_CHECK_VERSION(2,31,0)
 G_CONST_RETURN gchar *json_node_type_name       (JsonNode     *node);
-
+#else 
+const gchar *json_node_type_name       (JsonNode     *node);
+#endif
 void                  json_node_set_object      (JsonNode     *node,
                                                  JsonObject   *object);
 void                  json_node_take_object     (JsonNode     *node,
@@ -205,7 +210,11 @@ void                  json_node_get_value       (JsonNode     *node,
                                                  GValue       *value);
 void                  json_node_set_string      (JsonNode     *node,
                                                  const gchar  *value);
+#if !GLIB_CHECK_VERSION(2,31,0)
 G_CONST_RETURN gchar *json_node_get_string      (JsonNode     *node);
+#else
+const gchar *json_node_get_string      (JsonNode     *node);
+#endif
 gchar *               json_node_dup_string      (JsonNode     *node);
 void                  json_node_set_int         (JsonNode     *node,
                                                  gint64        value);
@@ -266,8 +275,13 @@ gdouble               json_object_get_double_member  (JsonObject  *object,
                                                       const gchar *member_name);
 gboolean              json_object_get_boolean_member (JsonObject  *object,
                                                       const gchar *member_name);
+#if !GLIB_CHECK_VERSION(2,31,0)
 G_CONST_RETURN gchar *json_object_get_string_member  (JsonObject  *object,
                                                       const gchar *member_name);
+#else
+const gchar *json_object_get_string_member  (JsonObject  *object,
+                                                      const gchar *member_name);
+#endif
 gboolean              json_object_get_null_member    (JsonObject  *object,
                                                       const gchar *member_name);
 JsonArray *           json_object_get_array_member   (JsonObject  *object,
@@ -313,8 +327,13 @@ gdouble               json_array_get_double_element  (JsonArray   *array,
                                                       guint        index_);
 gboolean              json_array_get_boolean_element (JsonArray   *array,
                                                       guint        index_);
+#if !GLIB_CHECK_VERSION(2,31,0)
 G_CONST_RETURN gchar *json_array_get_string_element  (JsonArray   *array,
                                                       guint        index_);
+#else
+const gchar *json_array_get_string_element  (JsonArray   *array,
+                                                      guint        index_);
+#endif
 gboolean              json_array_get_null_element    (JsonArray   *array,
                                                       guint        index_);
 JsonArray *           json_array_get_array_element   (JsonArray   *array,

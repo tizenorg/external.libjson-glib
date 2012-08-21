@@ -113,8 +113,11 @@ json_array_ref (JsonArray *array)
   g_return_val_if_fail (array != NULL, NULL);
   g_return_val_if_fail (array->ref_count > 0, NULL);
 
+#if !GLIB_CHECK_VERSION(2, 31, 0)
   g_atomic_int_exchange_and_add (&array->ref_count, 1);
-
+#else
+  g_atomic_int_add (&array->ref_count, 1);
+#endif
   return array;
 }
 
@@ -332,9 +335,15 @@ json_array_get_boolean_element (JsonArray *array,
  *
  * Since: 0.8
  */
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 G_CONST_RETURN gchar *
 json_array_get_string_element (JsonArray *array,
                                guint      index_)
+#else 
+const gchar *
+json_array_get_string_element (JsonArray *array,
+                               guint      index_)
+#endif
 {
   JsonNode *node;
 

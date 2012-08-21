@@ -462,8 +462,13 @@ json_node_free (JsonNode *node)
  * Return value: a string containing the name of the type. The returned string
  *   is owned by the node and should never be modified or freed
  */
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 G_CONST_RETURN gchar *
 json_node_type_name (JsonNode *node)
+#else
+const gchar *
+json_node_type_name (JsonNode *node)
+#endif
 {
   g_return_val_if_fail (node != NULL, "(null)");
 
@@ -481,8 +486,13 @@ json_node_type_name (JsonNode *node)
   return "unknown";
 }
 
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 G_CONST_RETURN gchar *
 json_node_type_get_name (JsonNodeType node_type)
+#else
+const gchar *
+json_node_type_get_name (JsonNodeType node_type)
+#endif
 {
   switch (node_type)
     {
@@ -578,8 +588,13 @@ json_node_set_string (JsonNode    *node,
  *
  * Return value: a string value.
  */
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 G_CONST_RETURN gchar *
 json_node_get_string (JsonNode *node)
+#else
+const gchar *
+json_node_get_string (JsonNode *node)
+#endif
 {
   g_return_val_if_fail (node != NULL, NULL);
 

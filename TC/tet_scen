@@ -1,0 +1,10 @@
+all
+	^TEST
+##### Scenarios for TEST #####
+
+# Test scenario
+TEST
+	:include:/unit/TC_Parser/tslist
+	:include:/unit/TC_Generator/tslist
+	:include:/unit/TC_Types/tslist
+	:include:/unit/TC_Gobject/tslist

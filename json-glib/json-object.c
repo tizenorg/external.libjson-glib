@@ -98,8 +98,11 @@ json_object_ref (JsonObject *object)
   g_return_val_if_fail (object != NULL, NULL);
   g_return_val_if_fail (object->ref_count > 0, NULL);
 
+#if !GLIB_CHECK_VERSION(2, 31, 0)
   g_atomic_int_exchange_and_add (&object->ref_count, 1);
-
+#else
+  g_atomic_int_add (&object->ref_count, 1);
+#endif
   return object;
 }
 
@@ -643,9 +646,15 @@ json_object_get_null_member (JsonObject  *object,
  *
  * Since: 0.8
  */
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 G_CONST_RETURN gchar *
 json_object_get_string_member (JsonObject  *object,
                                const gchar *member_name)
+#else
+const gchar *
+json_object_get_string_member (JsonObject  *object,
+                               const gchar *member_name)
+#endif
 {
   JsonNode *node;
 

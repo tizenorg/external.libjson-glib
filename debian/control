@@ -1,7 +1,7 @@
 Source: libjson-glib
 Section: libs
 Priority: extra
-Maintainer: MyoungJune Park <mj2004.park@samsung.com>
+Maintainer: Moung June Park <mj2004.park@samsung.com>
 Uploaders: Mike McCormack <mj.mccormack@samsung.com>
 Build-Depends: debhelper (>= 5), autotools-dev, libglib2.0-dev (>= 2.21.3), libgnutls-dev
 Standards-Version: 0.10.4

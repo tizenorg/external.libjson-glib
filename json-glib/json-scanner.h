@@ -34,10 +34,13 @@
 #ifndef __JSON_SCANNER_H__
 #define __JSON_SCANNER_H__
 
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 #include <glib/gdataset.h>
 #include <glib/ghash.h>
 #include <glib/gscanner.h>
-
+#else
+#include <glib.h>
+#endif
 G_BEGIN_DECLS
 
 typedef struct _JsonScanner       JsonScanner;

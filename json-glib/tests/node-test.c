@@ -1,6 +1,13 @@
-#include <glib/gtestutils.h>
+
 #include <json-glib/json-glib.h>
 #include <string.h>
+
+#if !GLIB_CHECK_VERSION (2, 31, 0)
+#include <glib/gtestutils.h>
+#else
+#include <glib.h>
+#endif
+
 
 static void
 test_copy_null (void)

@@ -59,7 +59,11 @@ struct _JsonObject
   volatile gint ref_count;
 };
 
+#if !GLIB_CHECK_VERSION(2, 31, 0)
 G_CONST_RETURN gchar *json_node_type_get_name (JsonNodeType node_type);
+#else
+const gchar *json_node_type_get_name (JsonNodeType node_type);
+#endif
 
 G_END_DECLS
 

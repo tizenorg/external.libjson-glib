@@ -1,7 +1,49 @@
-libjson-glib (0.10.4-1slp2-1) unstable; urgency=low
+libjson-glib (0.0.1-2slp7) unstable; urgency=low
 
-  * Initial Release
-  * Git: pkgs/l/libjson-glib
-  * Tag: libjson-glib_0.10.4-1slp2-1
+  * Release
 
- -- MyoungJune Park <mj2004.park@samsung.com>  Wed, 07 Dec 2011 14:12:11 +0900
+ -- MyoungJune Park <mj2004.park@samsung.com>  Tue, 14 Aug 2012 10:41:45 +0900
+
+libjson-glib (0.0.1-2slp6) unstable; urgency=low
+
+  * Fix incorrect macro name
+  * Git: slp/pkgs/libjson-glib
+  * Tag: libjson-glib_0.0.1-2slp6
+
+ -- Junghyun Kim <jh1114.kim@samsung.com>  Fri, 29 Jun 2012 13:55:08 +0900
+
+libjson-glib (0.0.1-2slp5) unstable; urgency=low
+
+  * spec file is updated
+  * Git: slp/pkgs/libjson-glib
+  * Tag: libjson-glib_0.0.1-2slp5
+
+ -- Taeyoung Kim <ty317.kim@samsung.com>  Wed, 14 Mar 2012 17:23:31 +0900
+
+libjson-glib (0.0.1-2slp4) unstable; urgency=low
+
+  * Updated for gcc 4.5
+  * Git: slp/pkgs/libjson-glib
+  * Tag: libjson-glib_0.0.1-2slp4
+
+ -- Mike McCormack <mj.mccormack@samsung.com>  Thu, 17 Mar 2011 16:24:28 +0900
+
+libjson-glib (0.0.1-2slp3) unstable; urgency=low
+
+  * Modified git tagging
+  * Git: 165.213.180.234:/git/slp/pkgs/libjson-glib
+  * Tag: libjson-glib_0.0.1-2slp3
+
+ -- Karam Ko <karam.ko@samsung.com>  Fri, 26 Nov 2010 10:59:21 +0900
+
+libjson-glib (0.0.1-2slp2) unstable; urgency=low
+
+  * Modified json-glib-1.0.pc
+
+ -- Karam Ko <karam.ko@samsung.com>  Fri, 04 Jun 2010 18:13:21 +0900
+
+libjson-glib (0.0.1-1slp2) unstable; urgency=low
+
+  * un-modified open source package of the libjson-glib
+
+ -- DoHyun Pyun <dh79.pyun@samsung.com>  Mon, 03 May 2010 14:12:11 +0900
