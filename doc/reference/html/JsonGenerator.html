@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>JsonGenerator</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.75.2">
+<link rel="home" href="index.html" title="JSON-GLib Reference Manual">
+<link rel="up" href="ch03.html" title="Generator">
+<link rel="prev" href="ch03.html" title="Generator">
+<link rel="next" href="json-advanced.html" title="Part IV. JSON-GLib Advanced API">
+<meta name="generator" content="GTK-Doc V1.13 (XML mode)">
+<link rel="stylesheet" href="style.css" type="text/css">
+<link rel="part" href="json-glib.html" title="Part I. JSON-GLib Overview">
+<link rel="part" href="json-base.html" title="Part II. JSON-GLib Reference">
+<link rel="chapter" href="ch01.html" title="Data Types">
+<link rel="part" href="json-streams.html" title="Part III. Reading and writing">
+<link rel="chapter" href="ch02.html" title="Parser">
+<link rel="chapter" href="ch03.html" title="Generator">
+<link rel="part" href="json-advanced.html" title="Part IV. JSON-GLib Advanced API">
+<link rel="part" href="json-tools.html" title="Part V. JSON-GLib Additional Reference">
+<link rel="chapter" href="ch04.html" title="Object Hierarchy">
+<link rel="index" href="ix01.html" title="Index">
+<link rel="index" href="ix02.html" title="Index of deprecated symbols">
+<link rel="index" href="ix03.html" title="Index of new symbols in 0.4">
+<link rel="index" href="ix04.html" title="Index of new symbols in 0.6">
+<link rel="index" href="ix05.html" title="Index of new symbols in 0.8">
+<link rel="index" href="ix06.html" title="Index of new symbols in 0.10">
+<link rel="glossary" href="annotation-glossary.html" title="Annotation Glossary">
+<link rel="appendix" href="license.html" title="Appendix A. License">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table class="navigation" id="top" width="100%" summary="Navigation header" cellpadding="2" cellspacing="2">
+<tr valign="middle">
+<td><a accesskey="p" href="ch03.html"><img src="left.png" width="24" height="24" border="0" alt="Prev"></a></td>
+<td><a accesskey="u" href="ch03.html"><img src="up.png" width="24" height="24" border="0" alt="Up"></a></td>
+<td><a accesskey="h" href="index.html"><img src="home.png" width="24" height="24" border="0" alt="Home"></a></td>
+<th width="100%" align="center">JSON-GLib Reference Manual</th>
+<td><a accesskey="n" href="json-advanced.html"><img src="right.png" width="24" height="24" border="0" alt="Next"></a></td>
+</tr>
+<tr><td colspan="5" class="shortcuts">
+<a href="#JsonGenerator.synopsis" class="shortcut">Top</a>
+                   | 
+                  <a href="#JsonGenerator.description" class="shortcut">Description</a>
+                   | 
+                  <a href="#JsonGenerator.object-hierarchy" class="shortcut">Object Hierarchy</a>
+                   | 
+                  <a href="#JsonGenerator.properties" class="shortcut">Properties</a>
+</td></tr>
+</table>
+<div class="refentry" title="JsonGenerator">
+<a name="JsonGenerator"></a><div class="titlepage"></div>
+<div class="refnamediv"><table width="100%"><tr>
+<td valign="top">
+<h2><span class="refentrytitle"><a name="JsonGenerator.top_of_page"></a>JsonGenerator</span></h2>
+<p>JsonGenerator — Generates JSON data streams</p>
+</td>
+<td valign="top" align="right"></td>
+</tr></table></div>
+<div class="refsynopsisdiv" title="Synopsis">
+<a name="JsonGenerator.synopsis"></a><h2>Synopsis</h2>
+<pre class="synopsis">                    <a class="link" href="JsonGenerator.html#JsonGenerator-struct" title="JsonGenerator">JsonGenerator</a>;
+                    <a class="link" href="JsonGenerator.html#JsonGeneratorClass" title="JsonGeneratorClass">JsonGeneratorClass</a>;
+<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *     <a class="link" href="JsonGenerator.html#json-generator-new" title="json_generator_new ()">json_generator_new</a>                  (void);
+<a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gboolean"><span class="returnvalue">gboolean</span></a>            <a class="link" href="JsonGenerator.html#json-generator-to-file" title="json_generator_to_file ()">json_generator_to_file</a>              (<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *generator,
+                                                         const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *filename,
+                                                         <a href="http://library.gnome.org/devel/glib/unstable/glib-Error-Reporting.html#GError"><span class="returnvalue">GError</span></a> **error);
+<a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *             <a class="link" href="JsonGenerator.html#json-generator-to-data" title="json_generator_to_data ()">json_generator_to_data</a>              (<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *generator,
+                                                         <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gsize"><span class="returnvalue">gsize</span></a> *length);
+<span class="returnvalue">void</span>                <a class="link" href="JsonGenerator.html#json-generator-set-root" title="json_generator_set_root ()">json_generator_set_root</a>             (<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *generator,
+                                                         <a class="link" href="json-glib-JSON-Node.html#JsonNode" title="JsonNode"><span class="returnvalue">JsonNode</span></a> *node);
+</pre>
+</div>
+<div class="refsect1" title="Object Hierarchy">
+<a name="JsonGenerator.object-hierarchy"></a><h2>Object Hierarchy</h2>
+<pre class="synopsis">
+  <a href="http://library.gnome.org/devel/gobject/unstable/gobject-The-Base-Object-Type.html#GObject">GObject</a>
+   +----JsonGenerator
+</pre>
+</div>
+<div class="refsect1" title="Properties">
+<a name="JsonGenerator.properties"></a><h2>Properties</h2>
+<pre class="synopsis">
+  "<a class="link" href="JsonGenerator.html#JsonGenerator--indent" title='The "indent" property'>indent</a>"                   <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write
+  "<a class="link" href="JsonGenerator.html#JsonGenerator--indent-char" title='The "indent-char" property'>indent-char</a>"              <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write
+  "<a class="link" href="JsonGenerator.html#JsonGenerator--pretty" title='The "pretty" property'>pretty</a>"                   <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gboolean"><span class="type">gboolean</span></a>              : Read / Write
+  "<a class="link" href="JsonGenerator.html#JsonGenerator--root" title='The "root" property'>root</a>"                     <a class="link" href="json-glib-JSON-Node.html#JsonNode" title="JsonNode"><span class="type">JsonNode</span></a>*             : Read / Write
+</pre>
+</div>
+<div class="refsect1" title="Description">
+<a name="JsonGenerator.description"></a><h2>Description</h2>
+<p>
+<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a> provides an object for generating a JSON data stream and
+put it into a buffer or a file.</p>
+</div>
+<div class="refsect1" title="Details">
+<a name="JsonGenerator.details"></a><h2>Details</h2>
+<div class="refsect2" title="JsonGenerator">
+<a name="JsonGenerator-struct"></a><h3>JsonGenerator</h3>
+<pre class="programlisting">typedef struct _JsonGenerator JsonGenerator;</pre>
+<p>
+JSON data streams generator. The contents of the <a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a> structure
+are private and should only be accessed via the provided API.</p>
+</div>
+<hr>
+<div class="refsect2" title="JsonGeneratorClass">
+<a name="JsonGeneratorClass"></a><h3>JsonGeneratorClass</h3>
+<pre class="programlisting">typedef struct {
+} JsonGeneratorClass;
+</pre>
+<p>
+<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a> class</p>
+</div>
+<hr>
+<div class="refsect2" title="json_generator_new ()">
+<a name="json-generator-new"></a><h3>json_generator_new ()</h3>
+<pre class="programlisting"><a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *     json_generator_new                  (void);</pre>
+<p>
+Creates a new <a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a>. You can use this object to generate a
+JSON data stream starting from a data object model composed by
+<a class="link" href="json-glib-JSON-Node.html#JsonNode" title="JsonNode"><span class="type">JsonNode</span></a>s.</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td> the newly created <a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a> instance
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" title="json_generator_to_file ()">
+<a name="json-generator-to-file"></a><h3>json_generator_to_file ()</h3>
+<pre class="programlisting"><a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gboolean"><span class="returnvalue">gboolean</span></a>            json_generator_to_file              (<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *generator,
+                                                         const <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *filename,
+                                                         <a href="http://library.gnome.org/devel/glib/unstable/glib-Error-Reporting.html#GError"><span class="returnvalue">GError</span></a> **error);</pre>
+<p>
+Creates a JSON data stream and puts it inside <em class="parameter"><code>filename</code></em>, overwriting the
+current file contents. This operation is atomic.</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>generator</code></em> :</span></p></td>
+<td> a <a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>filename</code></em> :</span></p></td>
+<td> path to the target file
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>error</code></em> :</span></p></td>
+<td> return location for a <a href="http://library.gnome.org/devel/glib/unstable/glib-Error-Reporting.html#GError"><span class="type">GError</span></a>, or <a href="http://library.gnome.org/devel/glib/unstable/glib-Standard-Macros.html#NULL:CAPS"><code class="literal">NULL</code></a>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td> <a href="http://library.gnome.org/devel/glib/unstable/glib-Standard-Macros.html#TRUE:CAPS"><code class="literal">TRUE</code></a> if saving was successful.
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" title="json_generator_to_data ()">
+<a name="json-generator-to-data"></a><h3>json_generator_to_data ()</h3>
+<pre class="programlisting"><a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gchar"><span class="returnvalue">gchar</span></a> *             json_generator_to_data              (<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *generator,
+                                                         <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gsize"><span class="returnvalue">gsize</span></a> *length);</pre>
+<p>
+Generates a JSON data stream from <em class="parameter"><code>generator</code></em> and returns it as a
+buffer.</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>generator</code></em> :</span></p></td>
+<td> a <a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>length</code></em> :</span></p></td>
+<td>out. <acronym title="Parameter for returning results. Default is transfer full."><span class="acronym">out</span></acronym>. </td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span> :</span></p></td>
+<td> a newly allocated buffer holding a JSON data stream.
+  Use <a href="http://library.gnome.org/devel/glib/unstable/glib-Memory-Allocation.html#g-free"><code class="function">g_free()</code></a> to free the allocated resources.
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" title="json_generator_set_root ()">
+<a name="json-generator-set-root"></a><h3>json_generator_set_root ()</h3>
+<pre class="programlisting"><span class="returnvalue">void</span>                json_generator_set_root             (<a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="returnvalue">JsonGenerator</span></a> *generator,
+                                                         <a class="link" href="json-glib-JSON-Node.html#JsonNode" title="JsonNode"><span class="returnvalue">JsonNode</span></a> *node);</pre>
+<p>
+Sets <em class="parameter"><code>node</code></em> as the root of the JSON data stream to be serialized by
+the <a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a>.
+</p>
+<p>
+</p>
+<div class="note" title="Note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>The node is copied by the generator object, so it can be safely
+freed after calling this function.</div>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>generator</code></em> :</span></p></td>
+<td> a <a class="link" href="JsonGenerator.html" title="JsonGenerator"><span class="type">JsonGenerator</span></a>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>node</code></em> :</span></p></td>
+<td> a <a class="link" href="json-glib-JSON-Node.html#JsonNode" title="JsonNode"><span class="type">JsonNode</span></a>
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+</div>
+<div class="refsect1" title="Property Details">
+<a name="JsonGenerator.property-details"></a><h2>Property Details</h2>
+<div class="refsect2" title='The "indent" property'>
+<a name="JsonGenerator--indent"></a><h3>The <code class="literal">"indent"</code> property</h3>
+<pre class="programlisting">  "indent"                   <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write</pre>
+<p>
+Number of spaces to be used to indent when pretty printing.</p>
+<p>Default value: 2</p>
+</div>
+<hr>
+<div class="refsect2" title='The "indent-char" property'>
+<a name="JsonGenerator--indent-char"></a><h3>The <code class="literal">"indent-char"</code> property</h3>
+<pre class="programlisting">  "indent-char"              <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#guint"><span class="type">guint</span></a>                 : Read / Write</pre>
+<p>
+The character that should be used when indenting in pretty print.</p>
+<p>Default value: ' '</p>
+<p class="since">Since 0.6</p>
+</div>
+<hr>
+<div class="refsect2" title='The "pretty" property'>
+<a name="JsonGenerator--pretty"></a><h3>The <code class="literal">"pretty"</code> property</h3>
+<pre class="programlisting">  "pretty"                   <a href="http://library.gnome.org/devel/glib/unstable/glib-Basic-Types.html#gboolean"><span class="type">gboolean</span></a>              : Read / Write</pre>
+<p>
+Whether the output should be "pretty-printed", with indentation and
+newlines. The indentation level can be controlled by using the
+JsonGenerator:indent property</p>
+<p>Default value: FALSE</p>
+</div>
+<hr>
+<div class="refsect2" title='The "root" property'>
+<a name="JsonGenerator--root"></a><h3>The <code class="literal">"root"</code> property</h3>
+<pre class="programlisting">  "root"                     <a class="link" href="json-glib-JSON-Node.html#JsonNode" title="JsonNode"><span class="type">JsonNode</span></a>*             : Read / Write</pre>
+<p>
+The root <a class="link" href="json-glib-JSON-Node.html#JsonNode" title="JsonNode"><span class="type">JsonNode</span></a> to be used when constructing a JSON data
+stream.</p>
+<p class="since">Since 0.4</p>
+</div>
+</div>
+</div>
+<div class="footer">
+<hr>
+          Generated by GTK-Doc V1.13</div>
+</body>
+</html>

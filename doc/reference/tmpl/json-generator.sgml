@@ -1,0 +1,91 @@
+<!-- ##### SECTION Title ##### -->
+JsonGenerator
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### STRUCT JsonGenerator ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### ARG JsonGenerator:indent ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG JsonGenerator:indent-char ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG JsonGenerator:pretty ##### -->
+<para>
+
+</para>
+
+<!-- ##### ARG JsonGenerator:root ##### -->
+<para>
+
+</para>
+
+<!-- ##### STRUCT JsonGeneratorClass ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### FUNCTION json_generator_new ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
+<!-- ##### FUNCTION json_generator_to_file ##### -->
+<para>
+
+</para>
+
+@generator: 
+@filename: 
+@error: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_generator_to_data ##### -->
+<para>
+
+</para>
+
+@generator: 
+@length: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_generator_set_root ##### -->
+<para>
+
+</para>
+
+@generator: 
+@node: 
+
+

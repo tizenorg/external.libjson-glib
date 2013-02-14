@@ -1,0 +1,19 @@
+Source: libjson-glib
+Section: libs
+Priority: extra
+Maintainer: Moung June Park <mj2004.park@samsung.com>
+Uploaders: Mike McCormack <mj.mccormack@samsung.com>
+Build-Depends: debhelper (>= 5), autotools-dev, libglib2.0-dev (>= 2.21.3), libgnutls-dev
+Standards-Version: 0.10.4
+
+Package: libjson-glib
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: an json-glib api library implementation in C (shared libs)
+
+Package: libjson-glib-dev
+Section: libdevel
+Architecture: any
+Depends: libjson-glib (= ${Source-Version}), libglib2.0-dev (>= 2.21.3), libgnutls-dev
+Description: an json-glib api library implementation in C (development files)
