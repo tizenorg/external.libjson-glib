@@ -1,0 +1,270 @@
+<!-- ##### SECTION Title ##### -->
+JSON Array
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### STRUCT JsonArray ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### FUNCTION json_array_new ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_sized_new ##### -->
+<para>
+
+</para>
+
+@n_elements: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_ref ##### -->
+<para>
+
+</para>
+
+@array: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_unref ##### -->
+<para>
+
+</para>
+
+@array: 
+
+
+<!-- ##### FUNCTION json_array_add_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@node: 
+
+
+<!-- ##### FUNCTION json_array_get_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_dup_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_get_elements ##### -->
+<para>
+
+</para>
+
+@array: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_get_length ##### -->
+<para>
+
+</para>
+
+@array: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_remove_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+
+
+<!-- ##### USER_FUNCTION JsonArrayForeach ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@element_node: 
+@user_data: 
+
+
+<!-- ##### FUNCTION json_array_foreach_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@func: 
+@data: 
+
+
+<!-- ##### FUNCTION json_array_add_array_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@value: 
+
+
+<!-- ##### FUNCTION json_array_get_array_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_add_boolean_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@value: 
+
+
+<!-- ##### FUNCTION json_array_get_boolean_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_add_double_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@value: 
+
+
+<!-- ##### FUNCTION json_array_get_double_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_add_int_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@value: 
+
+
+<!-- ##### FUNCTION json_array_get_int_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_add_null_element ##### -->
+<para>
+
+</para>
+
+@array: 
+
+
+<!-- ##### FUNCTION json_array_get_null_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_add_object_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@value: 
+
+
+<!-- ##### FUNCTION json_array_get_object_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+
+<!-- ##### FUNCTION json_array_add_string_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@value: 
+
+
+<!-- ##### FUNCTION json_array_get_string_element ##### -->
+<para>
+
+</para>
+
+@array: 
+@index_: 
+@Returns: 
+
+

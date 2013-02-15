@@ -1,0 +1,73 @@
+<!-- ##### SECTION Title ##### -->
+Versioning information
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### MACRO JSON_MAJOR_VERSION ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO JSON_MINOR_VERSION ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO JSON_MICRO_VERSION ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO JSON_VERSION ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO JSON_VERSION_S ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO JSON_VERSION_HEX ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### MACRO JSON_CHECK_VERSION ##### -->
+<para>
+
+</para>
+
+@major: 
+@minor: 
+@micro: 
+
+
