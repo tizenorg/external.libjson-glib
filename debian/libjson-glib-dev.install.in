@@ -1,0 +1,2 @@
+@PREFIX@/include/json-glib-1.0/json-glib/*.h
+@PREFIX@/lib/pkgconfig/*.pc
