@@ -54,6 +54,7 @@ rm -rf %{buildroot}
 
 
 %files
+%manifest libsjon-glib.manifest
 %defattr(-,root,root,-)
 %doc COPYING
 /usr/lib/libjson-glib-1.0.so.*
