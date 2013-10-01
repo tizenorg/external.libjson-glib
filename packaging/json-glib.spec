@@ -48,6 +48,9 @@ make %{?jobs:-j%jobs}
 rm -rf %{buildroot}
 %make_install
 
+mkdir -p %{buildroot}/usr/share/license
+cp COPYING %{buildroot}/usr/share/license/%{name}
+
 %post -p /sbin/ldconfig
 
 %postun -p /sbin/ldconfig
@@ -59,6 +62,7 @@ rm -rf %{buildroot}
 %doc COPYING
 /usr/lib/libjson-glib-1.0.so.*
 
+/usr/share/license/%{name}
 
 %files devel
 %defattr(-,root,root,-)
