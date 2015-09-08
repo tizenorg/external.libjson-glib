@@ -1,0 +1,50 @@
+From fcd07918d3ed2b31b047900da9d2fed23dddf7da Mon Sep 17 00:00:00 2001
+From: Eiichi Sato <eiichi.for.public@gmail.com>
+Date: Sat, 10 Apr 2010 01:52:10 +0900
+Subject: [PATCH] Support for surrogate pairs in json string.
+
+https://bugzilla.gnome.org/show_bug.cgi?id=615799
+
+Signed-off-by: Emmanuele Bassi <ebassi@linux.intel.com>
+---
+ json-glib/json-scanner.c |   16 +++++++++++++++-
+ 1 files changed, 15 insertions(+), 1 deletions(-)
+
+diff --git a/json-glib/json-scanner.c b/json-glib/json-scanner.c
+index 9cd0938..6eca2ba 100644
+--- a/json-glib/json-scanner.c
++++ b/json-glib/json-scanner.c
+@@ -892,7 +892,7 @@ json_scanner_get_unichar (JsonScanner *scanner,
+         break;
+     }
+ 
+-  g_assert (g_unichar_validate (uchar));
++  g_assert (g_unichar_validate (uchar) || g_unichar_type (uchar) == G_UNICODE_SURROGATE);
+ 
+   return uchar;
+ }
+@@ -1439,6 +1439,20 @@ json_scanner_get_token_ll (JsonScanner *scanner,
+                               gunichar ucs;
+ 
+                               ucs = json_scanner_get_unichar (scanner, line_p, position_p);
++
++                              if (g_unichar_type (ucs) == G_UNICODE_SURROGATE)
++                                {
++                                  /* read next surrogate */
++                                  if ('\\' == json_scanner_get_char (scanner, line_p, position_p)
++                                      && 'u' == json_scanner_get_char (scanner, line_p, position_p))
++                                    {
++                                      gunichar ucs_lo = json_scanner_get_unichar (scanner, line_p, position_p);
++                                      g_assert (g_unichar_type (ucs_lo) == G_UNICODE_SURROGATE);
++                                      ucs = (((ucs & 0x3ff) << 10) | (ucs_lo & 0x3ff)) + 0x10000;
++                                    }
++                                }
++
++                              g_assert (g_unichar_validate (ucs));
+                               gstring = g_string_append_unichar (gstring, ucs);
+                             }
+                           break;
+-- 
+1.7.1
+
+

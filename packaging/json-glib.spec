@@ -1,16 +1,17 @@
 #sbs-git:slp/pkgs/l/libjson-glib json-glib 0.0.1 982a2ec62fdaecef7bf0d791b9b7be16d398d70b
 
-Name:       json-glib
-Summary:    JSON Parser for GLib
-Version: 0.0.1
-Release:    1
-Group:      System/Libraries
-License:    LGPLv2.1
-Source0:    %{name}-%{version}.tar.gz
-Requires(post): /sbin/ldconfig
+Name:             json-glib
+Summary:          JSON Parser for GLib
+Version:          0.0.1
+Release:          1
+Group:            System/Libraries
+License:          LGPL-2.1+
+Source0:          %{name}-%{version}.tar.gz
+Patch0:           support_surrogate_pairs_in_json_string.patch
+Requires(post):   /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
-BuildRequires:  pkgconfig(gobject-2.0)
-BuildRequires:  pkgconfig(gnutls)
+BuildRequires:    pkgconfig(gobject-2.0)
+BuildRequires:    pkgconfig(gnutls)
 
 
 %description
@@ -38,6 +39,7 @@ Components for the json-glib package (doc)
 %prep
 %setup -q -n %{name}-%{version}
 
+%patch0 -p1 -b .support_surrogate_pairs
 
 %build
 
@@ -45,7 +47,10 @@ Components for the json-glib package (doc)
 make %{?jobs:-j%jobs}
 
 %install
-rm -rf %{buildroot}
+
+mkdir -p %{buildroot}/usr/share/license
+cp COPYING %{buildroot}/usr/share/license/json-glib
+#rm -rf %{buildroot}
 %make_install
 
 %post -p /sbin/ldconfig
@@ -57,7 +62,7 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %doc COPYING
 /usr/lib/libjson-glib-1.0.so.*
-
+/usr/share/license/json-glib
 
 %files devel
 %defattr(-,root,root,-)
