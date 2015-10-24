@@ -32,7 +32,7 @@
  * When registering a #GBoxed type you should also register the
  * corresponding transformation functions, e.g.:
  *
- * |[
+ * |[<!-- language="C" -->
  *   GType
  *   my_struct_get_type (void)
  *   {
@@ -66,9 +66,7 @@
  * and to which specific #JsonNodeType.
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <string.h>
 #include <stdlib.h>
@@ -136,7 +134,7 @@ lookup_boxed_transform (GSList       *transforms,
 }
 
 /**
- * json_boxed_register_serialize_func:
+ * json_boxed_register_serialize_func: (skip)
  * @gboxed_type: a boxed type
  * @node_type: a node type
  * @serialize_func: serialization function for @boxed_type into
@@ -181,7 +179,7 @@ json_boxed_register_serialize_func (GType                  gboxed_type,
 }
 
 /**
- * json_boxed_register_deserialize_func:
+ * json_boxed_register_deserialize_func: (skip)
  * @gboxed_type: a boxed type
  * @node_type: a node type
  * @deserialize_func: deserialization function for @boxed_type from
@@ -298,9 +296,8 @@ json_boxed_can_deserialize (GType        gboxed_type,
  * Serializes @boxed, a pointer to a #GBoxed of type @gboxed_type,
  * into a #JsonNode
  *
- * Return value: a #JsonNode with the serialization of the boxed
- *   type, or %NULL if serialization either failed or was not
- *   possible
+ * Return value: (transfer full): a #JsonNode with the serialization of the
+ *   boxed type, or %NULL if serialization either failed or was not possible
  *
  * Since: 0.10
  */
@@ -328,8 +325,9 @@ json_boxed_serialize (GType         gboxed_type,
  *
  * Deserializes @node into a #GBoxed of @gboxed_type
  *
- * Return value: the newly allocated #GBoxed. Use g_boxed_free() to
- *   release the resources allocated by this function
+ * Return value: (transfer full): the newly allocated #GBoxed. Use
+ *   g_boxed_free() to release the resources allocated by this
+ *   function
  *
  * Since: 0.10
  */

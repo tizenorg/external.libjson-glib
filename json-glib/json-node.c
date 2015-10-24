@@ -21,9 +21,7 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <glib.h>
 
@@ -48,18 +46,7 @@
  * they contain.
  */
 
-GType
-json_node_get_type (void)
-{
-  static GType node_type = 0;
-
-  if (G_UNLIKELY (node_type == 0))
-    node_type = g_boxed_type_register_static (g_intern_static_string ("JsonNode"),
-                                              (GBoxedCopyFunc) json_node_copy,
-                                              (GBoxedFreeFunc) json_node_free);
-
-  return node_type;
-}
+G_DEFINE_BOXED_TYPE (JsonNode, json_node, json_node_copy, json_node_free);
 
 /**
  * json_node_get_value_type:
@@ -88,7 +75,10 @@ json_node_get_value_type (JsonNode *node)
       return G_TYPE_INVALID;
 
     case JSON_NODE_VALUE:
-      return G_VALUE_TYPE (&(node->data.value));
+      if (node->data.value)
+        return JSON_VALUE_TYPE (node->data.value);
+      else
+        return G_TYPE_INVALID;
 
     default:
       g_assert_not_reached ();
@@ -97,25 +87,280 @@ json_node_get_value_type (JsonNode *node)
 }
 
 /**
- * json_node_new:
+ * json_node_alloc: (constructor)
+ *
+ * Allocates a new #JsonNode. Use json_node_init() and its variants
+ * to initialize the returned value.
+ *
+ * Return value: (transfer full): the newly allocated #JsonNode. Use
+ *   json_node_free() to free the resources allocated by this function
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_alloc (void)
+{
+  return g_slice_new0 (JsonNode);
+}
+
+static void
+json_node_unset (JsonNode *node)
+{
+  g_assert (node != NULL);
+
+  switch (node->type)
+    {
+    case JSON_NODE_OBJECT:
+      if (node->data.object)
+        json_object_unref (node->data.object);
+      break;
+
+    case JSON_NODE_ARRAY:
+      if (node->data.array)
+        json_array_unref (node->data.array);
+      break;
+
+    case JSON_NODE_VALUE:
+      if (node->data.value)
+        json_value_unref (node->data.value);
+      break;
+
+    case JSON_NODE_NULL:
+      break;
+    }
+}
+
+/**
+ * json_node_init:
+ * @node: the #JsonNode to initialize
+ * @type: the type of JSON node to initialize @node to
+ *
+ * Initializes a @node to a specific @type.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init (JsonNode *node,
+                JsonNodeType type)
+{
+  g_return_val_if_fail (type >= JSON_NODE_OBJECT &&
+                        type <= JSON_NODE_NULL, NULL);
+
+  json_node_unset (node);
+
+  node->type = type;
+
+  return node;
+}
+
+/**
+ * json_node_init_object:
+ * @node: the #JsonNode to initialize
+ * @object: (allow-none): the #JsonObject to initialize @node with, or %NULL
+ *
+ * Initializes @node to %JSON_NODE_OBJECT and sets @object into it.
+ *
+ * This function will take a reference on @object.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init_object (JsonNode   *node,
+                       JsonObject *object)
+{
+  g_return_val_if_fail (node != NULL, NULL);
+  
+  json_node_init (node, JSON_NODE_OBJECT);
+  json_node_set_object (node, object);
+
+  return node;
+}
+
+/**
+ * json_node_init_array:
+ * @node: the #JsonNode to initialize
+ * @array: (allow-none): the #JsonArray to initialize @node with, or %NULL
+ *
+ * Initializes @node to %JSON_NODE_ARRAY and sets @array into it.
+ *
+ * This function will take a reference on @array.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init_array (JsonNode  *node,
+                      JsonArray *array)
+{
+  g_return_val_if_fail (node != NULL, NULL);
+
+  json_node_init (node, JSON_NODE_ARRAY);
+  json_node_set_array (node, array);
+
+  return node;
+}
+
+/**
+ * json_node_init_int:
+ * @node: the #JsonNode to initialize
+ * @value: an integer
+ *
+ * Initializes @node to %JSON_NODE_VALUE and sets @value into it.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init_int (JsonNode *node,
+                    gint64    value)
+{
+  g_return_val_if_fail (node != NULL, NULL);
+
+  json_node_init (node, JSON_NODE_VALUE);
+  json_node_set_int (node, value);
+
+  return node;
+}
+
+/**
+ * json_node_init_double:
+ * @node: the #JsonNode to initialize
+ * @value: a floating point value
+ *
+ * Initializes @node to %JSON_NODE_VALUE and sets @value into it.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init_double (JsonNode *node,
+                       gdouble   value)
+{
+  g_return_val_if_fail (node != NULL, NULL);
+
+  json_node_init (node, JSON_NODE_VALUE);
+  json_node_set_double (node, value);
+
+  return node;
+}
+
+/**
+ * json_node_init_boolean:
+ * @node: the #JsonNode to initialize
+ * @value: a boolean value
+ *
+ * Initializes @node to %JSON_NODE_VALUE and sets @value into it.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init_boolean (JsonNode *node,
+                        gboolean  value)
+{
+  g_return_val_if_fail (node != NULL, NULL);
+
+  json_node_init (node, JSON_NODE_VALUE);
+  json_node_set_boolean (node, value);
+
+  return node;
+}
+
+/**
+ * json_node_init_string:
+ * @node: the #JsonNode to initialize
+ * @value: (allow-none): a string value
+ *
+ * Initializes @node to %JSON_NODE_VALUE and sets @value into it.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init_string (JsonNode   *node,
+                       const char *value)
+{
+  g_return_val_if_fail (node != NULL, NULL);
+
+  json_node_init (node, JSON_NODE_VALUE);
+  json_node_set_string (node, value);
+
+  return node;
+}
+
+/**
+ * json_node_init_null:
+ * @node: the #JsonNode to initialize
+ *
+ * Initializes @node to %JSON_NODE_NULL.
+ *
+ * If the node has already been initialized once, it will be reset to
+ * the given type, and any data contained will be cleared.
+ *
+ * Return value: (transfer none): the initialized #JsonNode
+ *
+ * Since: 0.16
+ */
+JsonNode *
+json_node_init_null (JsonNode *node)
+{
+  g_return_val_if_fail (node != NULL, NULL);
+
+  return json_node_init (node, JSON_NODE_NULL);
+}
+
+/**
+ * json_node_new: (constructor)
  * @type: a #JsonNodeType
  *
  * Creates a new #JsonNode of @type.
  *
- * Return value: the newly created #JsonNode
+ * This is a convenience function for json_node_alloc() and json_node_init(),
+ * and it's the equivalent of:
+ *
+ * |[<!-- language="C" -->
+     json_node_init (json_node_alloc (), type);
+ * ]|
+ *
+ * Return value: (transfer full): the newly created #JsonNode
  */
 JsonNode *
 json_node_new (JsonNodeType type)
 {
-  JsonNode *data;
-
   g_return_val_if_fail (type >= JSON_NODE_OBJECT &&
                         type <= JSON_NODE_NULL, NULL);
 
-  data = g_slice_new0 (JsonNode);
-  data->type = type;
-
-  return data;
+  return json_node_init (json_node_alloc (), type);
 }
 
 /**
@@ -140,21 +385,16 @@ json_node_copy (JsonNode *node)
   switch (copy->type)
     {
     case JSON_NODE_OBJECT:
-      if (node->data.object)
-        copy->data.object = json_object_ref (node->data.object);
+      copy->data.object = json_node_dup_object (node);
       break;
 
     case JSON_NODE_ARRAY:
-      if (node->data.array)
-        copy->data.array = json_array_ref (node->data.array);
+      copy->data.array = json_node_dup_array (node);
       break;
 
     case JSON_NODE_VALUE:
-      if (G_VALUE_TYPE (&(node->data.value)) != G_TYPE_INVALID)
-        {
-          g_value_init (&(copy->data.value), G_VALUE_TYPE (&(node->data.value)));
-          g_value_copy (&(node->data.value), &(copy->data.value));
-        }
+      if (node->data.value)
+        copy->data.value = json_value_ref (node->data.value);
       break;
 
     case JSON_NODE_NULL:
@@ -169,7 +409,7 @@ json_node_copy (JsonNode *node)
 
 /**
  * json_node_set_object:
- * @node: a #JsonNode
+ * @node: a #JsonNode initialized to %JSON_NODE_OBJECT
  * @object: a #JsonObject
  *
  * Sets @objects inside @node. The reference count of @object is increased.
@@ -181,7 +421,7 @@ json_node_set_object (JsonNode   *node,
   g_return_if_fail (node != NULL);
   g_return_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_OBJECT);
 
-  if (node->data.object)
+  if (node->data.object != NULL)
     json_object_unref (node->data.object);
 
   if (object)
@@ -192,8 +432,8 @@ json_node_set_object (JsonNode   *node,
 
 /**
  * json_node_take_object:
- * @node: a #JsonNode
- * @object: a #JsonObject
+ * @node: a #JsonNode initialized to %JSON_NODE_OBJECT
+ * @object: (transfer full): a #JsonObject
  *
  * Sets @object inside @node. The reference count of @object is not increased.
  */
@@ -254,7 +494,7 @@ json_node_dup_object (JsonNode *node)
 
 /**
  * json_node_set_array:
- * @node: a #JsonNode
+ * @node: a #JsonNode initialized to %JSON_NODE_ARRAY
  * @array: a #JsonArray
  *
  * Sets @array inside @node and increases the #JsonArray reference count
@@ -277,8 +517,8 @@ json_node_set_array (JsonNode  *node,
 
 /**
  * json_node_take_array:
- * @node: a #JsonNode
- * @array: a #JsonArray
+ * @node: a #JsonNode initialized to %JSON_NODE_ARRAY
+ * @array: (transfer full): a #JsonArray
  *
  * Sets @array into @node without increasing the #JsonArray reference count.
  */
@@ -317,7 +557,7 @@ json_node_get_array (JsonNode *node)
 }
 
 /**
- * json_node_dup_array
+ * json_node_dup_array:
  * @node: a #JsonNode
  *
  * Retrieves the #JsonArray stored inside a #JsonNode and returns it
@@ -341,7 +581,7 @@ json_node_dup_array (JsonNode *node)
 /**
  * json_node_get_value:
  * @node: a #JsonNode
- * @value: return location for an uninitialized value
+ * @value: (out caller-allocates): return location for an uninitialized value
  *
  * Retrieves a value from a #JsonNode and copies into @value. When done
  * using it, call g_value_unset() on the #GValue.
@@ -353,23 +593,36 @@ json_node_get_value (JsonNode *node,
   g_return_if_fail (node != NULL);
   g_return_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE);
 
-  if (G_VALUE_TYPE (&(node->data.value)) != G_TYPE_INVALID)
+  if (node->data.value)
     {
-      g_value_init (value, G_VALUE_TYPE (&(node->data.value)));
-      g_value_copy (&(node->data.value), value);
-    }
-}
+      g_value_init (value, JSON_VALUE_TYPE (node->data.value));
+      switch (JSON_VALUE_TYPE (node->data.value))
+        {
+        case G_TYPE_INT64:
+          g_value_set_int64 (value, json_value_get_int (node->data.value));
+          break;
 
-static void inline
-node_value_unset (JsonNode *node)
-{
-  if (G_VALUE_TYPE (&(node->data.value)) != G_TYPE_INVALID)
-    g_value_unset (&(node->data.value));
+        case G_TYPE_DOUBLE:
+          g_value_set_double (value, json_value_get_double (node->data.value));
+          break;
+
+        case G_TYPE_BOOLEAN:
+          g_value_set_boolean (value, json_value_get_boolean (node->data.value));
+          break;
+
+        case G_TYPE_STRING:
+          g_value_set_string (value, json_value_get_string (node->data.value));
+          break;
+
+        default:
+          break;
+        }
+    }
 }
 
 /**
  * json_node_set_value:
- * @node: a #JsonNode
+ * @node: a #JsonNode initialized to %JSON_NODE_VALUE
  * @value: the #GValue to set
  *
  * Sets @value inside @node. The passed #GValue is copied into the #JsonNode
@@ -382,32 +635,39 @@ json_node_set_value (JsonNode     *node,
   g_return_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE);
   g_return_if_fail (G_VALUE_TYPE (value) != G_TYPE_INVALID);
 
+  if (node->data.value == NULL)
+    node->data.value = json_value_alloc ();
+
   switch (G_VALUE_TYPE (value))
     {
-    /* direct copy for the types we use */
+    /* auto-promote machine integers to 64 bit integers */
     case G_TYPE_INT64:
-    case G_TYPE_BOOLEAN:
-    case G_TYPE_DOUBLE:
-    case G_TYPE_STRING:
-      node_value_unset (node);
-      g_value_init (&(node->data.value), G_VALUE_TYPE (value));
-      g_value_copy (value, &(node->data.value));
-      break;
-
-    /* auto-promote ints to long longs */
     case G_TYPE_INT:
-      node_value_unset (node);
-      g_value_init (&(node->data.value), G_TYPE_INT64);
-      g_value_set_int64 (&(node->data.value),
-                         g_value_get_int (value));
+      json_value_init (node->data.value, JSON_VALUE_INT);
+      if (G_VALUE_TYPE (value) == G_TYPE_INT64)
+        json_value_set_int (node->data.value, g_value_get_int64 (value));
+      else
+        json_value_set_int (node->data.value, g_value_get_int (value));
       break;
 
-    /* auto-promote single precision to double precision */
+    case G_TYPE_BOOLEAN:
+      json_value_init (node->data.value, JSON_VALUE_BOOLEAN);
+      json_value_set_boolean (node->data.value, g_value_get_boolean (value));
+      break;
+
+    /* auto-promote single-precision floats to double precision floats */
+    case G_TYPE_DOUBLE:
     case G_TYPE_FLOAT:
-      node_value_unset (node);
-      g_value_init (&(node->data.value), G_TYPE_DOUBLE);
-      g_value_set_double (&(node->data.value),
-                          g_value_get_float (value));
+      json_value_init (node->data.value, JSON_VALUE_DOUBLE);
+      if (G_VALUE_TYPE (value) == G_TYPE_DOUBLE)
+        json_value_set_double (node->data.value, g_value_get_double (value));
+      else
+        json_value_set_double (node->data.value, g_value_get_float (value));
+      break;
+
+    case G_TYPE_STRING:
+      json_value_init (node->data.value, JSON_VALUE_STRING);
+      json_value_set_string (node->data.value, g_value_get_string (value));
       break;
 
     default:
@@ -429,26 +689,7 @@ json_node_free (JsonNode *node)
 {
   if (G_LIKELY (node))
     {
-      switch (node->type)
-        {
-        case JSON_NODE_OBJECT:
-          if (node->data.object)
-            json_object_unref (node->data.object);
-          break;
-
-        case JSON_NODE_ARRAY:
-          if (node->data.array)
-            json_array_unref (node->data.array);
-          break;
-
-        case JSON_NODE_VALUE:
-          g_value_unset (&(node->data.value));
-          break;
-
-        case JSON_NODE_NULL:
-          break;
-        }
-
+      json_node_unset (node);
       g_slice_free (JsonNode, node);
     }
 }
@@ -462,13 +703,8 @@ json_node_free (JsonNode *node)
  * Return value: a string containing the name of the type. The returned string
  *   is owned by the node and should never be modified or freed
  */
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-G_CONST_RETURN gchar *
-json_node_type_name (JsonNode *node)
-#else
 const gchar *
 json_node_type_name (JsonNode *node)
-#endif
 {
   g_return_val_if_fail (node != NULL, "(null)");
 
@@ -480,19 +716,15 @@ json_node_type_name (JsonNode *node)
       return json_node_type_get_name (node->type);
 
     case JSON_NODE_VALUE:
-      return g_type_name (G_VALUE_TYPE (&(node->data.value)));
+      if (node->data.value)
+        return json_value_type_get_name (node->data.value->type);
     }
 
   return "unknown";
 }
 
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-G_CONST_RETURN gchar *
-json_node_type_get_name (JsonNodeType node_type)
-#else
 const gchar *
 json_node_type_get_name (JsonNodeType node_type)
-#endif
 {
   switch (node_type)
     {
@@ -519,7 +751,7 @@ json_node_type_get_name (JsonNodeType node_type)
 /**
  * json_node_set_parent:
  * @node: a #JsonNode
- * @parent: the parent #JsonNode of @node
+ * @parent: (transfer none): the parent #JsonNode of @node
  *
  * Sets the parent #JsonNode of @node
  *
@@ -540,7 +772,8 @@ json_node_set_parent (JsonNode *node,
  *
  * Retrieves the parent #JsonNode of @node.
  *
- * Return value: the parent node, or %NULL if @node is the root node
+ * Return value: (transfer none): the parent node, or %NULL if @node is
+ *   the root node
  */
 JsonNode *
 json_node_get_parent (JsonNode *node)
@@ -552,7 +785,7 @@ json_node_get_parent (JsonNode *node)
 
 /**
  * json_node_set_string:
- * @node: a #JsonNode of type %JSON_NODE_VALUE
+ * @node: a #JsonNode initialized to %JSON_NODE_VALUE
  * @value: a string value
  *
  * Sets @value as the string content of the @node, replacing any existing
@@ -565,19 +798,12 @@ json_node_set_string (JsonNode    *node,
   g_return_if_fail (node != NULL);
   g_return_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE);
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_STRING)
-    g_value_set_string (&(node->data.value), value);
+  if (node->data.value == NULL)
+    node->data.value = json_value_init (json_value_alloc (), JSON_VALUE_STRING);
   else
-    {
-      GValue copy = { 0, };
+    json_value_init (node->data.value, JSON_VALUE_STRING);
 
-      g_value_init (&copy, G_TYPE_STRING);
-      g_value_set_string (&copy, value);
-
-      json_node_set_value (node, &copy);
-
-      g_value_unset (&copy);
-    }
+  json_value_set_string (node->data.value, value);
 }
 
 /**
@@ -588,21 +814,16 @@ json_node_set_string (JsonNode    *node,
  *
  * Return value: a string value.
  */
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-G_CONST_RETURN gchar *
-json_node_get_string (JsonNode *node)
-#else
 const gchar *
 json_node_get_string (JsonNode *node)
-#endif
 {
   g_return_val_if_fail (node != NULL, NULL);
 
   if (JSON_NODE_TYPE (node) == JSON_NODE_NULL)
     return NULL;
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_STRING)
-    return g_value_get_string (&(node->data.value));
+  if (JSON_VALUE_HOLDS_STRING (node->data.value))
+    return json_value_get_string (node->data.value);
 
   return NULL;
 }
@@ -621,13 +842,7 @@ json_node_dup_string (JsonNode *node)
 {
   g_return_val_if_fail (node != NULL, NULL);
 
-  if (JSON_NODE_TYPE (node) == JSON_NODE_NULL)
-    return NULL;
-
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_STRING)
-    return g_value_dup_string (&(node->data.value));
-
-  return NULL;
+  return g_strdup (json_node_get_string (node));
 }
 
 /**
@@ -645,19 +860,12 @@ json_node_set_int (JsonNode *node,
   g_return_if_fail (node != NULL);
   g_return_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE);
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_INT64)
-    g_value_set_int64 (&(node->data.value), value);
+  if (node->data.value == NULL)
+    node->data.value = json_value_init (json_value_alloc (), JSON_VALUE_INT);
   else
-    {
-      GValue copy = { 0, };
+    json_value_init (node->data.value, JSON_VALUE_INT);
 
-      g_value_init (&copy, G_TYPE_INT64);
-      g_value_set_int64 (&copy, value);
-
-      json_node_set_value (node, &copy);
-
-      g_value_unset (&copy);
-    }
+  json_value_set_int (node->data.value, value);
 }
 
 /**
@@ -676,8 +884,14 @@ json_node_get_int (JsonNode *node)
   if (JSON_NODE_TYPE (node) == JSON_NODE_NULL)
     return 0;
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_INT64)
-    return g_value_get_int64 (&(node->data.value));
+  if (JSON_VALUE_HOLDS_INT (node->data.value))
+    return json_value_get_int (node->data.value);
+
+  if (JSON_VALUE_HOLDS_DOUBLE (node->data.value))
+    return json_value_get_double (node->data.value);
+
+  if (JSON_VALUE_HOLDS_BOOLEAN (node->data.value))
+    return json_value_get_boolean (node->data.value);
 
   return 0;
 }
@@ -697,19 +911,12 @@ json_node_set_double (JsonNode *node,
   g_return_if_fail (node != NULL);
   g_return_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE);
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_DOUBLE)
-    g_value_set_double (&(node->data.value), value);
+  if (node->data.value == NULL)
+    node->data.value = json_value_init (json_value_alloc (), JSON_VALUE_DOUBLE);
   else
-    {
-      GValue copy = { 0, };
+    json_value_init (node->data.value, JSON_VALUE_DOUBLE);
 
-      g_value_init (&copy, G_TYPE_DOUBLE);
-      g_value_set_double (&copy, value);
-
-      json_node_set_value (node, &copy);
-
-      g_value_unset (&copy);
-    }
+  json_value_set_double (node->data.value, value);
 }
 
 /**
@@ -728,8 +935,14 @@ json_node_get_double (JsonNode *node)
   if (JSON_NODE_TYPE (node) == JSON_NODE_NULL)
     return 0;
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_DOUBLE)
-    return g_value_get_double (&(node->data.value));
+  if (JSON_VALUE_HOLDS_DOUBLE (node->data.value))
+    return json_value_get_double (node->data.value);
+
+  if (JSON_VALUE_HOLDS_INT (node->data.value))
+    return (gdouble) json_value_get_int (node->data.value);
+
+  if (JSON_VALUE_HOLDS_BOOLEAN (node->data.value))
+    return (gdouble) json_value_get_boolean (node->data.value);
 
   return 0.0;
 }
@@ -749,19 +962,12 @@ json_node_set_boolean (JsonNode *node,
   g_return_if_fail (node != NULL);
   g_return_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE);
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_BOOLEAN)
-    g_value_set_boolean (&(node->data.value), value);
+  if (node->data.value == NULL)
+    node->data.value = json_value_init (json_value_alloc (), JSON_VALUE_BOOLEAN);
   else
-    {
-      GValue copy = { 0, };
+    json_value_init (node->data.value, JSON_VALUE_BOOLEAN);
 
-      g_value_init (&copy, G_TYPE_BOOLEAN);
-      g_value_set_boolean (&copy, value);
-
-      json_node_set_value (node, &copy);
-
-      g_value_unset (&copy);
-    }
+  json_value_set_boolean (node->data.value, value);
 }
 
 /**
@@ -780,8 +986,14 @@ json_node_get_boolean (JsonNode *node)
   if (JSON_NODE_TYPE (node) == JSON_NODE_NULL)
     return FALSE;
 
-  if (G_VALUE_TYPE (&(node->data.value)) == G_TYPE_BOOLEAN)
-    return g_value_get_boolean (&(node->data.value));
+  if (JSON_VALUE_HOLDS_BOOLEAN (node->data.value))
+    return json_value_get_boolean (node->data.value);
+
+  if (JSON_VALUE_HOLDS_INT (node->data.value))
+    return json_value_get_int (node->data.value) != 0;
+
+  if (JSON_VALUE_HOLDS_DOUBLE (node->data.value))
+    return json_value_get_double (node->data.value) != 0.0;
 
   return FALSE;
 }
@@ -808,9 +1020,10 @@ json_node_get_node_type (JsonNode *node)
  * json_node_is_null:
  * @node: a #JsonNode
  *
- * Checks whether @node is a %JSON_NODE_NULL
+ * Checks whether @node is a %JSON_NODE_NULL.
  *
- * <note>A null node is not the same as a %NULL #JsonNode</note>
+ * A %JSON_NODE_NULL node is not the same as a %NULL #JsonNode; a
+ * %JSON_NODE_NULL represents a 'null' value in the JSON tree.
  *
  * Return value: %TRUE if the node is null
  *

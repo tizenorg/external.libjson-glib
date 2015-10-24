@@ -21,9 +21,7 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include "json-types-private.h"
 
@@ -32,7 +30,7 @@
  * @short_description: a JSON array representation
  *
  * #JsonArray is the representation of the array type inside JSON. It contains
- * #JsonNode<!-- -->s, which may contain fundamental types, other arrays or
+ * #JsonNode elements, which may contain fundamental types, other arrays or
  * objects.
  *
  * Since arrays can be expensive, they are reference counted. You can control
@@ -44,25 +42,14 @@
  * To retrieve the length of the array, use json_array_get_length().
  */
 
-GType
-json_array_get_type (void)
-{
-  static GType array_type = 0;
-
-  if (G_UNLIKELY (!array_type))
-    array_type = g_boxed_type_register_static (g_intern_static_string ("JsonArray"),
-                                               (GBoxedCopyFunc) json_array_ref,
-                                               (GBoxedFreeFunc) json_array_unref);
-
-  return array_type;
-}
+G_DEFINE_BOXED_TYPE (JsonArray, json_array, json_array_ref, json_array_unref);
 
 /**
- * json_array_new:
+ * json_array_new: (constructor)
  *
  * Creates a new #JsonArray.
  *
- * Return value: the newly created #JsonArray
+ * Return value: (transfer full): the newly created #JsonArray
  */
 JsonArray *
 json_array_new (void)
@@ -78,12 +65,12 @@ json_array_new (void)
 }
 
 /**
- * json_array_sized_new:
+ * json_array_sized_new: (constructor)
  * @n_elements: number of slots to pre-allocate
  *
  * Creates a new #JsonArray with @n_elements slots already allocated.
  *
- * Return value: the newly created #JsonArray
+ * Return value: (transfer full): the newly created #JsonArray
  */
 JsonArray *
 json_array_sized_new (guint n_elements)
@@ -104,7 +91,7 @@ json_array_sized_new (guint n_elements)
  *
  * Increase by one the reference count of a #JsonArray.
  *
- * Return value: the passed #JsonArray, with the reference count
+ * Return value: (transfer none): the passed #JsonArray, with the reference count
  *   increased by one.
  */
 JsonArray *
@@ -113,11 +100,8 @@ json_array_ref (JsonArray *array)
   g_return_val_if_fail (array != NULL, NULL);
   g_return_val_if_fail (array->ref_count > 0, NULL);
 
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-  g_atomic_int_exchange_and_add (&array->ref_count, 1);
-#else
   g_atomic_int_add (&array->ref_count, 1);
-#endif
+
   return array;
 }
 
@@ -132,15 +116,10 @@ json_array_ref (JsonArray *array)
 void
 json_array_unref (JsonArray *array)
 {
-  gint old_ref;
-
   g_return_if_fail (array != NULL);
   g_return_if_fail (array->ref_count > 0);
 
-  old_ref = g_atomic_int_get (&array->ref_count);
-  if (old_ref > 1)
-    g_atomic_int_compare_and_exchange (&array->ref_count, old_ref, old_ref - 1);
-  else
+  if (g_atomic_int_dec_and_test (&array->ref_count))
     {
       guint i;
 
@@ -158,7 +137,7 @@ json_array_unref (JsonArray *array)
  * json_array_get_elements:
  * @array: a #JsonArray
  *
- * Gets the elements of a #JsonArray as a list of #JsonNode<!-- -->s.
+ * Gets the elements of a #JsonArray as a list of #JsonNode instances.
  *
  * Return value: (element-type JsonNode) (transfer container): a #GList
  *   containing the elements of the array. The contents of the list are
@@ -218,7 +197,7 @@ json_array_dup_element (JsonArray *array,
  * Retrieves the #JsonNode containing the value of the element at @index_
  * inside a #JsonArray.
  *
- * Return value: a pointer to the #JsonNode at the requested index
+ * Return value: (transfer none): a pointer to the #JsonNode at the requested index
  */
 JsonNode *
 json_array_get_element (JsonArray *array,
@@ -335,15 +314,9 @@ json_array_get_boolean_element (JsonArray *array,
  *
  * Since: 0.8
  */
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-G_CONST_RETURN gchar *
-json_array_get_string_element (JsonArray *array,
-                               guint      index_)
-#else 
 const gchar *
 json_array_get_string_element (JsonArray *array,
                                guint      index_)
-#endif
 {
   JsonNode *node;
 
@@ -352,7 +325,10 @@ json_array_get_string_element (JsonArray *array,
 
   node = g_ptr_array_index (array->elements, index_);
   g_return_val_if_fail (node != NULL, NULL);
-  g_return_val_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE, NULL);
+  g_return_val_if_fail (JSON_NODE_HOLDS_VALUE (node) || JSON_NODE_HOLDS_NULL (node), NULL);
+
+  if (JSON_NODE_HOLDS_NULL (node))
+    return NULL;
 
   return json_node_get_string (node);
 }
@@ -382,7 +358,16 @@ json_array_get_null_element (JsonArray *array,
   node = g_ptr_array_index (array->elements, index_);
   g_return_val_if_fail (node != NULL, FALSE);
 
-  return JSON_NODE_TYPE (node) == JSON_NODE_NULL;
+  if (JSON_NODE_HOLDS_NULL (node))
+    return TRUE;
+
+  if (JSON_NODE_HOLDS_ARRAY (node))
+    return json_node_get_array (node) == NULL;
+
+  if (JSON_NODE_HOLDS_OBJECT (node))
+    return json_node_get_object (node) == NULL;
+
+  return FALSE;
 }
 
 /**
@@ -410,7 +395,10 @@ json_array_get_array_element (JsonArray *array,
 
   node = g_ptr_array_index (array->elements, index_);
   g_return_val_if_fail (node != NULL, NULL);
-  g_return_val_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_ARRAY, NULL);
+  g_return_val_if_fail (JSON_NODE_HOLDS_ARRAY (node) || JSON_NODE_HOLDS_NULL (node), NULL);
+
+  if (JSON_NODE_HOLDS_NULL (node))
+    return NULL;
 
   return json_node_get_array (node);
 }
@@ -440,7 +428,10 @@ json_array_get_object_element (JsonArray *array,
 
   node = g_ptr_array_index (array->elements, index_);
   g_return_val_if_fail (node != NULL, NULL);
-  g_return_val_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_OBJECT, NULL);
+  g_return_val_if_fail (JSON_NODE_HOLDS_OBJECT (node) || JSON_NODE_HOLDS_NULL (node), NULL);
+
+  if (JSON_NODE_HOLDS_NULL (node))
+    return NULL;
 
   return json_node_get_object (node);
 }
@@ -464,7 +455,7 @@ json_array_get_length (JsonArray *array)
 /**
  * json_array_add_element:
  * @array: a #JsonArray
- * @node: a #JsonNode
+ * @node: (transfer full): a #JsonNode
  *
  * Appends @node inside @array. The array will take ownership of the
  * #JsonNode.
@@ -494,14 +485,9 @@ void
 json_array_add_int_element (JsonArray *array,
                             gint64     value)
 {
-  JsonNode *node;
-
   g_return_if_fail (array != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_int (node, value);
-
-  g_ptr_array_add (array->elements, node);
+  g_ptr_array_add (array->elements, json_node_init_int (json_node_alloc (), value));
 }
 
 /**
@@ -519,14 +505,9 @@ void
 json_array_add_double_element (JsonArray *array,
                                gdouble    value)
 {
-  JsonNode *node;
-
   g_return_if_fail (array != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_double (node, value);
-
-  g_ptr_array_add (array->elements, node);
+  g_ptr_array_add (array->elements, json_node_init_double (json_node_alloc (), value));
 }
 
 /**
@@ -544,14 +525,9 @@ void
 json_array_add_boolean_element (JsonArray *array,
                                 gboolean   value)
 {
-  JsonNode *node;
-
   g_return_if_fail (array != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_boolean (node, value);
-
-  g_ptr_array_add (array->elements, node);
+  g_ptr_array_add (array->elements, json_node_init_boolean (json_node_alloc (), value));
 }
 
 /**
@@ -572,10 +548,13 @@ json_array_add_string_element (JsonArray   *array,
   JsonNode *node;
 
   g_return_if_fail (array != NULL);
-  g_return_if_fail (value != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_string (node, value);
+  node = json_node_alloc ();
+
+  if (value != NULL && *value != '\0')
+    json_node_init_string (node, value);
+  else
+    json_node_init_null (node);
 
   g_ptr_array_add (array->elements, node);
 }
@@ -593,19 +572,15 @@ json_array_add_string_element (JsonArray   *array,
 void
 json_array_add_null_element (JsonArray *array)
 {
-  JsonNode *node;
-
   g_return_if_fail (array != NULL);
 
-  node = json_node_new (JSON_NODE_NULL);
-
-  g_ptr_array_add (array->elements, node);
+  g_ptr_array_add (array->elements, json_node_init_null (json_node_alloc ()));
 }
 
 /**
  * json_array_add_array_element:
  * @array: a #JsonArray
- * @value: a #JsonArray
+ * @value: (allow-none) (transfer full): a #JsonArray
  *
  * Conveniently adds an array into @array. The @array takes ownership
  * of the newly added #JsonArray
@@ -621,10 +596,16 @@ json_array_add_array_element (JsonArray *array,
   JsonNode *node;
 
   g_return_if_fail (array != NULL);
-  g_return_if_fail (value != NULL);
 
-  node = json_node_new (JSON_NODE_ARRAY);
-  json_node_take_array (node, value);
+  node = json_node_alloc ();
+
+  if (value != NULL)
+    {
+      json_node_init_array (node, value);
+      json_array_unref (value);
+    }
+  else
+    json_node_init_null (node);
 
   g_ptr_array_add (array->elements, node);
 }
@@ -632,7 +613,7 @@ json_array_add_array_element (JsonArray *array,
 /**
  * json_array_add_object_element:
  * @array: a #JsonArray
- * @value: a #JsonObject
+ * @value: (transfer full): a #JsonObject
  *
  * Conveniently adds an object into @array. The @array takes ownership
  * of the newly added #JsonObject
@@ -648,10 +629,16 @@ json_array_add_object_element (JsonArray  *array,
   JsonNode *node;
 
   g_return_if_fail (array != NULL);
-  g_return_if_fail (value != NULL);
 
-  node = json_node_new (JSON_NODE_OBJECT);
-  json_node_take_object (node, value);
+  node = json_node_alloc ();
+
+  if (value != NULL)
+    {
+      json_node_init_object (node, value);
+      json_object_unref (value);
+    }
+  else
+    json_node_init_null (node);
 
   g_ptr_array_add (array->elements, node);
 }
@@ -677,8 +664,8 @@ json_array_remove_element (JsonArray *array,
 /**
  * json_array_foreach_element:
  * @array: a #JsonArray
- * @func: the function to be called on each element
- * @data: (allow-none): data to be passed to the function
+ * @func: (scope call): the function to be called on each element
+ * @data: (closure): data to be passed to the function
  *
  * Iterates over all elements of @array and calls @func on
  * each one of them.

@@ -1,76 +1,120 @@
-#sbs-git:slp/pkgs/l/libjson-glib json-glib 0.0.1 982a2ec62fdaecef7bf0d791b9b7be16d398d70b
+%bcond_with introspection
 
-Name:             json-glib
-Summary:          JSON Parser for GLib
-Version:          0.0.1
-Release:          1
-Group:            System/Libraries
-License:          LGPL-2.1+
-Source0:          %{name}-%{version}.tar.gz
-Patch0:           support_surrogate_pairs_in_json_string.patch
-Requires(post):   /sbin/ldconfig
-Requires(postun): /sbin/ldconfig
-BuildRequires:    pkgconfig(gobject-2.0)
-BuildRequires:    pkgconfig(gnutls)
-
+Name:           json-glib
+Version:        1.0.2
+Release:        0
+License:        LGPL-2.1+
+Summary:        Library for JavaScript Object Notation format
+Url:            http://live.gnome.org/JsonGlib
+Group:          System/Libraries
+#X-Vcs-Url:     git://git.gnome.org/json-glib
+Source0:        http://download.gnome.org/sources/json-glib/%{version}/%{name}-%{version}.tar.xz
+Source99:       baselibs.conf
+Source1001: 	json-glib.manifest
+%if %{with introspection}
+BuildRequires:  gobject-introspection-devel
+%endif
+BuildRequires:  pkgconfig(glib-2.0)
 
 %description
-an json-glib api library implementation in C (shared libs)
+JSON is a lightweight data-interchange format.It is easy for humans to
+read and write. It is easy for machines to parse and generate.
 
+JSON-GLib provides a parser and a generator GObject classes and various
+wrappers for the complex data types employed by JSON, such as arrays
+and objects.
 
+JSON-GLib uses GLib native data types and the generic value container
+GValue for ease of development. It also provides integration with the
+GObject classes for direct serialization into, and deserialization from,
+JSON data streams.
+
+%package -n typelib-Json
+Summary:        Library for JavaScript Object Notation format -- Introspection bindings
+Group:          System/Libraries
+
+%description -n typelib-Json
+JSON is a lightweight data-interchange format.It is easy for humans to
+read and write. It is easy for machines to parse and generate.
+
+JSON-GLib provides a parser and a generator GObject classes and various
+wrappers for the complex data types employed by JSON, such as arrays
+and objects.
+
+JSON-GLib uses GLib native data types and the generic value container
+GValue for ease of development. It also provides integration with the
+GObject classes for direct serialization into, and deserialization from,
+JSON data streams.
+
+This package provides the GObject Introspection bindings for JSON-GLib.
 
 %package devel
-Summary:    Development components for the json-glib package
-Group:      Development/Libraries
-Requires:   %{name} = %{version}-%{release}
+Summary:        Library for JavaScript Object Notation format - Development Files
+Group:          System/Libraries
+Requires:       json-glib = %{version}
+%if %{with introspection}
+Requires:       typelib-Json = %{version}
+%endif
+BuildRequires:	gettext
 
 %description devel
-Components for the json-glib package (devel)
+JSON is a lightweight data-interchange format.It is easy for humans to
+read and write. It is easy for machines to parse and generate.
 
-%package docs
-Summary:    Documentation components for the json-glib package
-Group:      Documentation
-Requires:   %{name} = %{version}-%{release}
+JSON-GLib provides a parser and a generator GObject classes and various
+wrappers for the complex data types employed by JSON, such as arrays
+and objects.
 
-%description docs
-Components for the json-glib package (doc)
+JSON-GLib uses GLib native data types and the generic value container
+GValue for ease of development. It also provides integration with the
+GObject classes for direct serialization into, and deserialization from,
+JSON data streams.
 
+This package contains development files needed to develop with the
+json-glib library.
 
+%lang_package
 %prep
-%setup -q -n %{name}-%{version}
-
-%patch0 -p1 -b .support_surrogate_pairs
+%setup -q
+cp %{SOURCE1001} .
 
 %build
-
-%reconfigure --disable-static
-make %{?jobs:-j%jobs}
+NOCONFIGURE=1
+%reconfigure --disable-man --disable-doc
+make %{?_smp_mflags}
 
 %install
-
-mkdir -p %{buildroot}/usr/share/license
-cp COPYING %{buildroot}/usr/share/license/json-glib
-#rm -rf %{buildroot}
 %make_install
+%find_lang %{name}-1.0
 
-%post -p /sbin/ldconfig
+mv %{name}-1.0.lang %{name}.lang
 
-%postun -p /sbin/ldconfig
+%post -n json-glib -p /sbin/ldconfig
 
+%postun -n json-glib -p /sbin/ldconfig
 
 %files
-%defattr(-,root,root,-)
+%manifest %{name}.manifest
+%defattr(-,root,root)
 %doc COPYING
-/usr/lib/libjson-glib-1.0.so.*
-/usr/share/license/json-glib
+%{_libdir}/*.so.*
+%{_bindir}/*
+
+%if %{with introspection}
+%files -n typelib-Json
+%manifest %{name}.manifest
+%defattr(-,root,root)
+%{_libdir}/girepository-1.0/Json-1.0.typelib
+%endif
 
 %files devel
-%defattr(-,root,root,-)
-/usr/include/json-glib-1.0/json-glib/*.h
-/usr/lib/*.so
-/usr/lib/pkgconfig/*.pc
+%manifest %{name}.manifest
+%defattr(-,root,root)
+%{_includedir}/%{name}-1.0
+%{_libdir}/*.so
+%{_libdir}/pkgconfig/*.pc
+%if %{with introspection}
+%{_datadir}/gir-1.0/*.gir
+%endif
 
-%files docs
-%defattr(-,root,root,-)
-%doc /usr/share/gtk-doc/html/json-glib/*
-
+%changelog

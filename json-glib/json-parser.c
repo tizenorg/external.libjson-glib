@@ -1,8 +1,9 @@
 /* json-parser.c - JSON streams parser
  * 
  * This file is part of JSON-GLib
- * Copyright (C) 2007  OpenedHand Ltd.
- * Copyright (C) 2009  Intel Corp.
+ *
+ * Copyright © 2007, 2008, 2009 OpenedHand Ltd
+ * Copyright © 2009, 2010 Intel Corp.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -29,26 +30,18 @@
  * inside a file or inside a static buffer.
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <string.h>
 
+#include <glib/gi18n-lib.h>
+
 #include "json-types-private.h"
 
+#include "json-debug.h"
 #include "json-marshal.h"
 #include "json-parser.h"
 #include "json-scanner.h"
-
-GQuark
-json_parser_error_quark (void)
-{
-  return g_quark_from_static_string ("json-parser-error");
-}
-
-#define JSON_PARSER_GET_PRIVATE(obj) \
-        (G_TYPE_INSTANCE_GET_PRIVATE ((obj), JSON_TYPE_PARSER, JsonParserPrivate))
 
 struct _JsonParserPrivate
 {
@@ -57,6 +50,7 @@ struct _JsonParserPrivate
 
   JsonScanner *scanner;
 
+  JsonParserError error_code;
   GError *last_error;
 
   gchar *variable_name;
@@ -102,7 +96,9 @@ enum
 
 static guint parser_signals[LAST_SIGNAL] = { 0, };
 
-G_DEFINE_TYPE (JsonParser, json_parser, G_TYPE_OBJECT);
+G_DEFINE_QUARK (json-parser-error-quark, json_parser_error)
+
+G_DEFINE_TYPE_WITH_PRIVATE (JsonParser, json_parser, G_TYPE_OBJECT)
 
 static guint json_parse_array  (JsonParser   *parser,
                                 JsonScanner  *scanner,
@@ -155,8 +151,6 @@ static void
 json_parser_class_init (JsonParserClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
-
-  g_type_class_add_private (klass, sizeof (JsonParserPrivate));
 
   gobject_class->dispose = json_parser_dispose;
   gobject_class->finalize = json_parser_finalize;
@@ -281,7 +275,7 @@ json_parser_class_init (JsonParserClass *klass)
   /**
    * JsonParser::array-end:
    * @parser: the #JsonParser that received the signal
-   * @array: the parsed #JsonArrary
+   * @array: the parsed #JsonArray
    *
    * The ::array-end signal is emitted each time the #JsonParser
    * has successfully parsed an entire #JsonArray
@@ -317,12 +311,15 @@ json_parser_class_init (JsonParserClass *klass)
 static void
 json_parser_init (JsonParser *parser)
 {
-  JsonParserPrivate *priv;
+  JsonParserPrivate *priv = json_parser_get_instance_private (parser);
 
-  parser->priv = priv = JSON_PARSER_GET_PRIVATE (parser);
+  parser->priv = priv;
 
   priv->root = NULL;
   priv->current_node = NULL;
+
+  priv->error_code = JSON_PARSER_ERROR_PARSE;
+  priv->last_error = NULL;
 
   priv->has_assignment = FALSE;
   priv->variable_name = NULL;
@@ -337,7 +334,8 @@ json_parse_value (JsonParser   *parser,
                   guint         token,
                   JsonNode    **node)
 {
-  JsonNode *current_node = parser->priv->current_node;
+  JsonParserPrivate *priv = parser->priv;
+  JsonNode *current_node = priv->current_node;
   gboolean is_negative = FALSE;
 
   if (token == '-')
@@ -357,31 +355,46 @@ json_parse_value (JsonParser   *parser,
   switch (token)
     {
     case G_TOKEN_INT:
-      *node = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (*node, is_negative ? scanner->value.v_int64 * -1
-                                            : scanner->value.v_int64);
+      JSON_NOTE (PARSER, "abs(node): %" G_GINT64_FORMAT " (sign: %s)",
+                 scanner->value.v_int64,
+                 is_negative ? "negative" : "positive");
+      *node = json_node_init_int (json_node_alloc (),
+                                  is_negative ? scanner->value.v_int64 * -1
+                                              : scanner->value.v_int64);
       break;
 
     case G_TOKEN_FLOAT:
-      *node = json_node_new (JSON_NODE_VALUE);
-      json_node_set_double (*node, is_negative ? scanner->value.v_float * -1.0
-                                               : scanner->value.v_float);
+      JSON_NOTE (PARSER, "abs(node): %.6f (sign: %s)",
+                 scanner->value.v_float,
+                 is_negative ? "negative" : "positive");
+      *node = json_node_init_double (json_node_alloc (),
+                                     is_negative ? scanner->value.v_float * -1.0
+                                                 : scanner->value.v_float);
       break;
 
     case G_TOKEN_STRING:
-      *node = json_node_new (JSON_NODE_VALUE);
-      json_node_set_string (*node, scanner->value.v_string);
+      JSON_NOTE (PARSER, "node: '%s'",
+                 scanner->value.v_string);
+      *node = json_node_init_string (json_node_alloc (), scanner->value.v_string);
       break;
 
     case JSON_TOKEN_TRUE:
     case JSON_TOKEN_FALSE:
-      *node = json_node_new (JSON_NODE_VALUE);
-      json_node_set_boolean (*node, token == JSON_TOKEN_TRUE ? TRUE : FALSE);
+      JSON_NOTE (PARSER, "node: '%s'",
+                 JSON_TOKEN_TRUE ? "<true>" : "<false>");
+      *node = json_node_init_boolean (json_node_alloc (), token == JSON_TOKEN_TRUE ? TRUE : FALSE);
       break;
 
     case JSON_TOKEN_NULL:
-      *node = json_node_new (JSON_NODE_NULL);
+      JSON_NOTE (PARSER, "node: <null>");
+      *node = json_node_init_null (json_node_alloc ());
       break;
+
+    case G_TOKEN_IDENTIFIER:
+      JSON_NOTE (PARSER, "node: identifier '%s'", scanner->value.v_identifier);
+      priv->error_code = JSON_PARSER_ERROR_INVALID_BAREWORD;
+      *node = NULL;
+      return G_TOKEN_SYMBOL;
 
     default:
       {
@@ -389,14 +402,26 @@ json_parse_value (JsonParser   *parser,
 
         *node = NULL;
 
+        JSON_NOTE (PARSER, "node: invalid token");
+
         cur_type = json_node_get_node_type (current_node);
         if (cur_type == JSON_NODE_ARRAY)
-          return G_TOKEN_RIGHT_BRACE;
+          {
+            priv->error_code = JSON_PARSER_ERROR_PARSE;
+            return G_TOKEN_RIGHT_BRACE;
+          }
         else if (cur_type == JSON_NODE_OBJECT)
-          return G_TOKEN_RIGHT_CURLY;
+          {
+            priv->error_code = JSON_PARSER_ERROR_PARSE;
+            return G_TOKEN_RIGHT_CURLY;
+          }
         else
-          return G_TOKEN_SYMBOL;
+          {
+            priv->error_code = JSON_PARSER_ERROR_INVALID_BAREWORD;
+            return G_TOKEN_SYMBOL;
+          }
       }
+      break;
     }
 
   return G_TOKEN_NONE;
@@ -414,7 +439,7 @@ json_parse_array (JsonParser   *parser,
   gint idx;
 
   old_current = priv->current_node;
-  priv->current_node = json_node_new (JSON_NODE_ARRAY);
+  priv->current_node = json_node_init_array (json_node_alloc (), NULL);
 
   array = json_array_new ();
 
@@ -433,30 +458,21 @@ json_parse_array (JsonParser   *parser,
       switch (next_token)
         {
         case G_TOKEN_LEFT_BRACE:
+          JSON_NOTE (PARSER, "Nested array at index %d", idx);
           token = json_parse_array (parser, scanner, &element);
           break;
 
         case G_TOKEN_LEFT_CURLY:
+          JSON_NOTE (PARSER, "Nested object at index %d", idx);
           token = json_parse_object (parser, scanner, &element);
-          break;
-
-        case G_TOKEN_INT:
-        case G_TOKEN_FLOAT:
-        case G_TOKEN_STRING:
-        case '-':
-        case JSON_TOKEN_TRUE:
-        case JSON_TOKEN_FALSE:
-        case JSON_TOKEN_NULL:
-          token = json_scanner_get_next_token (scanner);
-          token = json_parse_value (parser, scanner, token, &element);
           break;
 
         case G_TOKEN_RIGHT_BRACE:
           goto array_done;
 
         default:
-          if (next_token != G_TOKEN_RIGHT_BRACE)
-            token = G_TOKEN_RIGHT_BRACE;
+          token = json_scanner_get_next_token (scanner);
+          token = json_parse_value (parser, scanner, token, &element);
           break;
         }
 
@@ -480,6 +496,8 @@ json_parse_array (JsonParser   *parser,
           /* look for trailing commas */
           if (next_token == G_TOKEN_RIGHT_BRACE)
             {
+              priv->error_code = JSON_PARSER_ERROR_TRAILING_COMMA;
+
               json_array_unref (array);
               json_node_free (priv->current_node);
               json_node_free (element);
@@ -489,6 +507,7 @@ json_parse_array (JsonParser   *parser,
             }
         }
 
+      JSON_NOTE (PARSER, "Array element %d completed", idx + 1);
       json_node_set_parent (element, priv->current_node);
       json_array_add_element (array, element);
 
@@ -526,7 +545,7 @@ json_parse_object (JsonParser   *parser,
   guint token;
 
   old_current = priv->current_node;
-  priv->current_node = json_node_new (JSON_NODE_OBJECT);
+  priv->current_node = json_node_init_object (json_node_alloc (), NULL);
 
   object = json_object_new ();
 
@@ -550,6 +569,10 @@ json_parse_object (JsonParser   *parser,
       /* parse the member's name */
       if (next_token != G_TOKEN_STRING)
         {
+          JSON_NOTE (PARSER, "Missing object member name");
+
+          priv->error_code = JSON_PARSER_ERROR_INVALID_BAREWORD;
+
           json_object_unref (object);
           json_node_free (priv->current_node);
           priv->current_node = old_current;
@@ -560,11 +583,29 @@ json_parse_object (JsonParser   *parser,
       /* member name */
       token = json_scanner_get_next_token (scanner);
       name = g_strdup (scanner->value.v_string);
+      if (name == NULL || *name == '\0')
+        {
+          JSON_NOTE (PARSER, "Empty object member name");
+
+          priv->error_code = JSON_PARSER_ERROR_EMPTY_MEMBER_NAME;
+
+          json_object_unref (object);
+          json_node_free (priv->current_node);
+          priv->current_node = old_current;
+
+          return G_TOKEN_STRING;
+        }
+
+      JSON_NOTE (PARSER, "Object member '%s'", name);
 
       /* a colon separates names from values */
       next_token = json_scanner_peek_next_token (scanner);
       if (next_token != ':')
         {
+          JSON_NOTE (PARSER, "Missing object member name separator");
+
+          priv->error_code = JSON_PARSER_ERROR_MISSING_COLON;
+
           g_free (name);
           json_object_unref (object);
           json_node_free (priv->current_node);
@@ -582,27 +623,19 @@ json_parse_object (JsonParser   *parser,
       switch (next_token)
         {
         case G_TOKEN_LEFT_BRACE:
+          JSON_NOTE (PARSER, "Nested array at member %s", name);
           token = json_parse_array (parser, scanner, &member);
           break;
 
         case G_TOKEN_LEFT_CURLY:
+          JSON_NOTE (PARSER, "Nested object at member %s", name);
           token = json_parse_object (parser, scanner, &member);
-          break;
-
-        case G_TOKEN_INT:
-        case G_TOKEN_FLOAT:
-        case G_TOKEN_STRING:
-        case '-':
-        case JSON_TOKEN_TRUE:
-        case JSON_TOKEN_FALSE:
-        case JSON_TOKEN_NULL:
-          token = json_scanner_get_next_token (scanner);
-          token = json_parse_value (parser, scanner, token, &member);
           break;
 
         default:
           /* once a member name is defined we need a value */
-          token = G_TOKEN_SYMBOL;
+          token = json_scanner_get_next_token (scanner);
+          token = json_parse_value (parser, scanner, token, &member);
           break;
         }
 
@@ -626,6 +659,8 @@ json_parse_object (JsonParser   *parser,
           /* look for trailing commas */
           if (next_token == G_TOKEN_RIGHT_CURLY)
             {
+              priv->error_code = JSON_PARSER_ERROR_TRAILING_COMMA;
+
               json_object_unref (object);
               json_node_free (member);
               json_node_free (priv->current_node);
@@ -636,6 +671,8 @@ json_parse_object (JsonParser   *parser,
         }
       else if (next_token == G_TOKEN_STRING)
         {
+          priv->error_code = JSON_PARSER_ERROR_MISSING_COMMA;
+
           json_object_unref (object);
           json_node_free (member);
           json_node_free (priv->current_node);
@@ -644,6 +681,7 @@ json_parse_object (JsonParser   *parser,
           return G_TOKEN_COMMA;
         }
 
+      JSON_NOTE (PARSER, "Object member '%s' completed", name);
       json_node_set_parent (member, priv->current_node);
       json_object_set_member (object, name, member);
 
@@ -682,9 +720,11 @@ json_parse_statement (JsonParser  *parser,
   switch (token)
     {
     case G_TOKEN_LEFT_CURLY:
+      JSON_NOTE (PARSER, "Statement is object declaration");
       return json_parse_object (parser, scanner, &priv->root);
 
     case G_TOKEN_LEFT_BRACE:
+      JSON_NOTE (PARSER, "Statement is array declaration");
       return json_parse_array (parser, scanner, &priv->root);
 
     /* some web APIs are not only passing the data structures: they are
@@ -697,20 +737,29 @@ json_parse_statement (JsonParser  *parser,
         guint next_token;
         gchar *name;
 
+        JSON_NOTE (PARSER, "Statement is an assignment");
+
         /* swallow the 'var' token... */
         token = json_scanner_get_next_token (scanner);
 
         /* ... swallow the variable name... */
         next_token = json_scanner_get_next_token (scanner);
         if (next_token != G_TOKEN_IDENTIFIER)
-          return G_TOKEN_IDENTIFIER;
+          {
+            priv->error_code = JSON_PARSER_ERROR_INVALID_BAREWORD;
+            return G_TOKEN_IDENTIFIER;
+          }
 
         name = g_strdup (scanner->value.v_identifier);
 
         /* ... and finally swallow the '=' */
         next_token = json_scanner_get_next_token (scanner);
         if (next_token != '=')
-          return '=';
+          {
+            priv->error_code = JSON_PARSER_ERROR_INVALID_BAREWORD;
+            g_free (name);
+            return '=';
+          }
 
         priv->has_assignment = TRUE;
         priv->variable_name = name;
@@ -730,91 +779,47 @@ json_parse_statement (JsonParser  *parser,
       break;
 
     case JSON_TOKEN_NULL:
-      priv->root = priv->current_node = json_node_new (JSON_NODE_NULL);
-      json_scanner_get_next_token (scanner);
-      return G_TOKEN_NONE;
-
     case JSON_TOKEN_TRUE:
     case JSON_TOKEN_FALSE:
-      priv->root = priv->current_node = json_node_new (JSON_NODE_VALUE);
-      json_node_set_boolean (priv->current_node,
-                             token == JSON_TOKEN_TRUE ? TRUE : FALSE);
-      json_scanner_get_next_token (scanner);
-      return G_TOKEN_NONE;
-
     case '-':
-      {
-        guint next_token;
-        
-        token = json_scanner_get_next_token (scanner);
-        next_token = json_scanner_peek_next_token (scanner);
-
-        if (next_token == G_TOKEN_INT || next_token == G_TOKEN_FLOAT)
-          {
-            priv->root = priv->current_node = json_node_new (JSON_NODE_VALUE);
-            
-            token = json_scanner_get_next_token (scanner);
-            switch (token)
-              {
-              case G_TOKEN_INT:
-                json_node_set_int (priv->current_node,
-                                   scanner->value.v_int64 * -1);
-                break;
-              case G_TOKEN_FLOAT:
-                json_node_set_double (priv->current_node,
-                                      scanner->value.v_float * -1.0);
-                break;
-              default:
-                return G_TOKEN_INT;
-              }
-
-            json_scanner_get_next_token (scanner);
-            return G_TOKEN_NONE;
-          }
-        else
-          return G_TOKEN_INT;
-      }
-      break;
-
     case G_TOKEN_INT:
     case G_TOKEN_FLOAT:
     case G_TOKEN_STRING:
+    case G_TOKEN_IDENTIFIER:
+      JSON_NOTE (PARSER, "Statement is a value");
       token = json_scanner_get_next_token (scanner);
       return json_parse_value (parser, scanner, token, &priv->root);
 
     default:
+      JSON_NOTE (PARSER, "Unknown statement");
       json_scanner_get_next_token (scanner);
+      priv->error_code = JSON_PARSER_ERROR_INVALID_BAREWORD;
       return G_TOKEN_SYMBOL;
     }
 }
 
 static void
 json_scanner_msg_handler (JsonScanner *scanner,
-                          gchar       *message,
-                          gboolean     is_error)
+                          gchar       *message)
 {
   JsonParser *parser = scanner->user_data;
   JsonParserPrivate *priv = parser->priv;
+  GError *error = NULL;
 
-  if (is_error)
-    {
-      GError *error = NULL;
-
-      g_set_error (&error, JSON_PARSER_ERROR,
-                   JSON_PARSER_ERROR_PARSE,
-                   "%s:%d: Parse error: %s",
-                   priv->is_filename ? priv->filename : "<none>",
-                   scanner->line,
-                   message);
-      
-      parser->priv->last_error = error;
-      g_signal_emit (parser, parser_signals[ERROR], 0, error);
-    }
-  else
-    g_warning ("%s:%d: Parse error: %s",
-               priv->is_filename ? priv->filename : "<none>",
+  /* translators: %s: is the file name, the first %d is the line
+   * number, the second %d is the position on the line, and %s is
+   * the error message
+   */
+  g_set_error (&error, JSON_PARSER_ERROR,
+               priv->error_code,
+               _("%s:%d:%d: Parse error: %s"),
+               priv->is_filename ? priv->filename : "<data>",
                scanner->line,
+               scanner->position,
                message);
+      
+  parser->priv->last_error = error;
+  g_signal_emit (parser, parser_signals[ERROR], 0, error);
 }
 
 static JsonScanner *
@@ -827,6 +832,10 @@ json_scanner_create (JsonParser *parser)
   scanner->msg_handler = json_scanner_msg_handler;
   scanner->user_data = parser;
 
+  /* XXX: this is eminently stupid, but we use the symbols later on, so
+   * we cannot move them into JsonScanner without moving a bunch of code
+   * as well
+   */
   for (i = 0; i < n_symbols; i++)
     {
       json_scanner_scope_add_symbol (scanner, 0,
@@ -867,6 +876,15 @@ json_parser_load (JsonParser   *parser,
 
   json_parser_clear (parser);
 
+  if (!g_utf8_validate (data, length, NULL))
+    {
+      g_set_error_literal (error, JSON_PARSER_ERROR,
+                           JSON_PARSER_ERROR_INVALID_DATA,
+                           _("JSON data must be UTF-8 encoded"));
+      g_signal_emit (parser, parser_signals[ERROR], 0, *error);
+      return FALSE;
+    }
+
   scanner = json_scanner_create (parser);
   json_scanner_input_text (scanner, data, length);
 
@@ -882,6 +900,7 @@ json_parser_load (JsonParser   *parser,
       else
         {
           guint expected_token;
+          gint cur_token;
 
           /* we try to show the expected token, if possible */
           expected_token = json_parse_statement (parser, scanner);
@@ -890,8 +909,10 @@ json_parser_load (JsonParser   *parser,
               const gchar *symbol_name;
               gchar *msg;
 
+              cur_token = scanner->token;
               msg = NULL;
               symbol_name = NULL;
+
               if (scanner->scope_id == 0)
                 {
                   if (expected_token > JSON_TOKEN_INVALID &&
@@ -905,13 +926,13 @@ json_parser_load (JsonParser   *parser,
                         msg = g_strconcat ("e.g. '", symbol_name, "'", NULL);
                     }
 
-                  if (scanner->token > JSON_TOKEN_INVALID &&
-                      scanner->token < JSON_TOKEN_LAST)
+                  if (cur_token > JSON_TOKEN_INVALID &&
+                      cur_token < JSON_TOKEN_LAST)
                     {
                       symbol_name = "???";
 
                       for (i = 0; i < n_symbols; i++)
-                        if (symbols[i].token == scanner->token)
+                        if (symbols[i].token == cur_token)
                           symbol_name = symbol_names + symbols[i].name_offset;
                     }
                 }
@@ -921,8 +942,7 @@ json_parser_load (JsonParser   *parser,
                */
               json_scanner_unexp_token (scanner, expected_token,
                                         NULL, "value",
-                                        symbol_name, msg,
-                                        TRUE);
+                                        symbol_name, msg);
 
               /* and this will propagate the error we create in the
                * same message handler
@@ -1083,8 +1103,8 @@ json_parser_get_current_line (JsonParser *parser)
 {
   g_return_val_if_fail (JSON_IS_PARSER (parser), 0);
 
-  if (parser->priv->scanner)
-    return json_scanner_cur_line (parser->priv->scanner);
+  if (parser->priv->scanner != NULL)
+    return parser->priv->scanner->line;
 
   return 0;
 }
@@ -1107,8 +1127,8 @@ json_parser_get_current_pos (JsonParser *parser)
 {
   g_return_val_if_fail (JSON_IS_PARSER (parser), 0);
 
-  if (parser->priv->scanner)
-    return json_scanner_cur_line (parser->priv->scanner);
+  if (parser->priv->scanner != NULL)
+    return parser->priv->scanner->position;
 
   return 0;
 }
@@ -1116,7 +1136,7 @@ json_parser_get_current_pos (JsonParser *parser)
 /**
  * json_parser_has_assignment:
  * @parser: a #JsonParser
- * @variable_name: (out) (allow-none): Return location for the variable
+ * @variable_name: (out) (allow-none) (transfer none): Return location for the variable
  *   name, or %NULL
  *
  * A JSON data stream might sometimes contain an assignment, like:
@@ -1153,4 +1173,275 @@ json_parser_has_assignment (JsonParser  *parser,
     *variable_name = priv->variable_name;
 
   return priv->has_assignment;
+}
+
+#define GET_DATA_BLOCK_SIZE     8192
+
+/**
+ * json_parser_load_from_stream:
+ * @parser: a #JsonParser
+ * @stream: an open #GInputStream
+ * @cancellable: (allow-none): a #GCancellable, or %NULL
+ * @error: the return location for a #GError, or %NULL
+ *
+ * Loads the contents of an input stream and parses them.
+ *
+ * If @cancellable is not %NULL, then the operation can be cancelled by
+ * triggering the @cancellable object from another thread. If the
+ * operation was cancelled, the error %G_IO_ERROR_CANCELLED will be set
+ * on the passed @error.
+ *
+ * Return value: %TRUE if the data stream was successfully read and
+ *   parsed, and %FALSE otherwise
+ *
+ * Since: 0.12
+ */
+gboolean
+json_parser_load_from_stream (JsonParser    *parser,
+                              GInputStream  *stream,
+                              GCancellable  *cancellable,
+                              GError       **error)
+{
+  GByteArray *content;
+  gsize pos;
+  gssize res;
+  gboolean retval = FALSE;
+  GError *internal_error;
+
+  g_return_val_if_fail (JSON_IS_PARSER (parser), FALSE);
+  g_return_val_if_fail (G_IS_INPUT_STREAM (stream), FALSE);
+  g_return_val_if_fail (cancellable == NULL || G_IS_CANCELLABLE (cancellable), FALSE);
+
+  if (g_cancellable_set_error_if_cancelled (cancellable, error))
+    return FALSE;
+
+  content = g_byte_array_new ();
+  pos = 0;
+
+  g_byte_array_set_size (content, pos + GET_DATA_BLOCK_SIZE + 1);
+  while ((res = g_input_stream_read (stream, content->data + pos,
+                                     GET_DATA_BLOCK_SIZE,
+                                     cancellable, error)) > 0)
+    {
+      pos += res;
+      g_byte_array_set_size (content, pos + GET_DATA_BLOCK_SIZE + 1);
+    }
+
+  if (res < 0)
+    {
+      /* error has already been set */
+      retval = FALSE;
+      goto out;
+    }
+
+  /* zero-terminate the content; we allocated an extra byte for this */
+  content->data[pos] = 0;
+
+  internal_error = NULL;
+  retval = json_parser_load (parser, (const gchar *) content->data, pos, &internal_error);
+
+  if (internal_error != NULL)
+    g_propagate_error (error, internal_error);
+
+out:
+  g_byte_array_free (content, TRUE);
+
+  return retval;
+}
+
+typedef struct _LoadStreamData
+{
+  JsonParser *parser;
+  GError *error;
+  GCancellable *cancellable;
+  GAsyncReadyCallback callback;
+  gpointer user_data;
+  GByteArray *content;
+  gsize pos;
+} LoadStreamData;
+
+static void
+load_stream_data_free (gpointer data)
+{
+  LoadStreamData *closure;
+
+  if (G_UNLIKELY (data == NULL))
+    return;
+
+  closure = data;
+
+  if (closure->error)
+    g_error_free (closure->error);
+
+  if (closure->cancellable)
+    g_object_unref (closure->cancellable);
+
+  if (closure->content)
+    g_byte_array_free (closure->content, TRUE);
+
+  g_object_unref (closure->parser);
+
+  g_free (closure);
+}
+
+static void
+load_stream_data_read_callback (GObject      *object,
+                                GAsyncResult *read_res,
+                                gpointer      user_data)
+{
+  GInputStream *stream = G_INPUT_STREAM (object);
+  LoadStreamData *data = user_data;
+  GError *error = NULL;
+  gssize read_size;
+
+  read_size = g_input_stream_read_finish (stream, read_res, &error);
+  if (read_size < 0)
+    {
+      if (error != NULL)
+        data->error = error;
+      else
+        {
+          GSimpleAsyncResult *res;
+
+          /* EOF */
+          res = g_simple_async_result_new (G_OBJECT (data->parser),
+                                           data->callback,
+                                           data->user_data,
+                                           json_parser_load_from_stream_async);
+          g_simple_async_result_set_op_res_gpointer (res, data, load_stream_data_free);
+          g_simple_async_result_complete (res);
+          g_object_unref (res);
+        }
+    }
+  else if (read_size > 0)
+    {
+      data->pos += read_size;
+
+      g_byte_array_set_size (data->content, data->pos + GET_DATA_BLOCK_SIZE);
+
+      g_input_stream_read_async (stream, data->content->data + data->pos,
+                                 GET_DATA_BLOCK_SIZE,
+                                 0,
+                                 data->cancellable,
+                                 load_stream_data_read_callback,
+                                 data);
+    }
+  else
+    {
+      GSimpleAsyncResult *res;
+
+      res = g_simple_async_result_new (G_OBJECT (data->parser),
+                                       data->callback,
+                                       data->user_data,
+                                       json_parser_load_from_stream_async);
+      g_simple_async_result_set_op_res_gpointer (res, data, load_stream_data_free);
+      g_simple_async_result_complete (res);
+      g_object_unref (res);
+    }
+}
+
+/**
+ * json_parser_load_from_stream_finish:
+ * @parser: a #JsonParser
+ * @result: a #GAsyncResult
+ * @error: the return location for a #GError or %NULL
+ *
+ * Finishes an asynchronous stream loading started with
+ * json_parser_load_from_stream_async().
+ *
+ * Return value: %TRUE if the content of the stream was successfully retrieves
+ *   and parsed, and %FALSE otherwise. In case of error, the #GError will be
+ *   filled accordingly.
+ *
+ * Since: 0.12
+ */
+gboolean
+json_parser_load_from_stream_finish (JsonParser    *parser,
+                                     GAsyncResult  *result,
+                                     GError       **error)
+{
+  GSimpleAsyncResult *simple;
+  GError *internal_error;
+  LoadStreamData *data;
+  gboolean res;
+
+  g_return_val_if_fail (JSON_IS_PARSER (parser), FALSE);
+  g_return_val_if_fail (G_IS_SIMPLE_ASYNC_RESULT (result), FALSE);
+
+  simple = G_SIMPLE_ASYNC_RESULT (result);
+
+  if (g_simple_async_result_propagate_error (simple, error))
+    return FALSE;
+
+  g_warn_if_fail (g_simple_async_result_get_source_tag (simple) == json_parser_load_from_stream_async);
+
+  data = g_simple_async_result_get_op_res_gpointer (simple);
+
+  if (data->error)
+    {
+      g_propagate_error (error, data->error);
+      data->error = NULL;
+      return FALSE;
+    }
+
+  g_byte_array_set_size (data->content, data->pos + 1);
+  data->content->data[data->pos] = 0;
+
+  internal_error = NULL;
+  res = json_parser_load (parser, (const gchar *) data->content->data, data->pos, &internal_error);
+
+  if (internal_error != NULL)
+    g_propagate_error (error, internal_error);
+
+  return res;
+}
+
+/**
+ * json_parser_load_from_stream_async:
+ * @parser: a #JsonParser
+ * @stream: a #GInputStream
+ * @cancellable: (allow-none): a #GCancellable, or %NULL
+ * @callback: a #GAsyncReadyCallback to call when the request is satisfied
+ * @user_data: the data to pass to @callback
+ *
+ * Asynchronously reads the contents of @stream.
+ *
+ * For more details, see json_parser_load_from_stream() which is the
+ * synchronous version of this call.
+ *
+ * When the operation is finished, @callback will be called. You should
+ * then call json_parser_load_from_stream_finish() to get the result
+ * of the operation.
+ *
+ * Since: 0.12
+ */
+void
+json_parser_load_from_stream_async (JsonParser          *parser,
+                                    GInputStream        *stream,
+                                    GCancellable        *cancellable,
+                                    GAsyncReadyCallback  callback,
+                                    gpointer             user_data)
+{
+  LoadStreamData *data;
+
+  g_return_if_fail (JSON_IS_PARSER (parser));
+  g_return_if_fail (G_IS_INPUT_STREAM (stream));
+  g_return_if_fail (cancellable == NULL || G_IS_CANCELLABLE (cancellable));
+
+  data = g_new0 (LoadStreamData, 1);
+
+  if (cancellable != NULL)
+    data->cancellable = g_object_ref (cancellable);
+
+  data->callback = callback;
+  data->user_data = user_data;
+  data->content = g_byte_array_new ();
+  data->parser = g_object_ref (parser);
+
+  g_byte_array_set_size (data->content, data->pos + GET_DATA_BLOCK_SIZE);
+  g_input_stream_read_async (stream, data->content->data + data->pos,
+                             GET_DATA_BLOCK_SIZE, 0,
+                             data->cancellable,
+                             load_stream_data_read_callback,
+                             data);
 }

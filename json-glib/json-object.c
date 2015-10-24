@@ -21,10 +21,9 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
+#include <string.h>
 #include <glib.h>
 
 #include "json-types-private.h"
@@ -33,9 +32,10 @@
  * SECTION:json-object
  * @short_description: a JSON object representation
  *
- * #JsonArray is the representation of the object type inside JSON. It contains
- * #JsonNode<!-- -->s, which may contain fundamental types, arrays or other
- * objects. Each member of an object is accessed using its name.
+ * #JsonObject is the representation of the object type inside JSON. It
+ * contains #JsonNodes, which may contain fundamental types, arrays or other
+ * objects; each node inside an object, or "member", is accessed using a
+ * unique string, or "name".
  *
  * Since objects can be expensive, they are reference counted. You can control
  * the lifetime of a #JsonObject using json_object_ref() and json_object_unref().
@@ -47,25 +47,14 @@
  * use json_object_get_size().
  */
 
-GType
-json_object_get_type (void)
-{
-  static GType object_type = 0;
-
-  if (G_UNLIKELY (!object_type))
-    object_type = g_boxed_type_register_static (g_intern_static_string ("JsonObject"),
-                                                (GBoxedCopyFunc) json_object_ref,
-                                                (GBoxedFreeFunc) json_object_unref);
-
-  return object_type;
-}
+G_DEFINE_BOXED_TYPE (JsonObject, json_object, json_object_ref, json_object_unref);
 
 /**
- * json_object_new:
+ * json_object_new: (constructor)
  * 
  * Creates a new #JsonObject, an JSON object type representation.
  *
- * Return value: the newly created #JsonObject
+ * Return value: (transfer full): the newly created #JsonObject
  */
 JsonObject *
 json_object_new (void)
@@ -89,7 +78,7 @@ json_object_new (void)
  *
  * Increase by one the reference count of a #JsonObject.
  *
- * Return value: the passed #JsonObject, with the reference count
+ * Return value: (transfer none): the passed #JsonObject, with the reference count
  *   increased by one.
  */
 JsonObject *
@@ -98,11 +87,8 @@ json_object_ref (JsonObject *object)
   g_return_val_if_fail (object != NULL, NULL);
   g_return_val_if_fail (object->ref_count > 0, NULL);
 
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-  g_atomic_int_exchange_and_add (&object->ref_count, 1);
-#else
   g_atomic_int_add (&object->ref_count, 1);
-#endif
+
   return object;
 }
 
@@ -117,15 +103,10 @@ json_object_ref (JsonObject *object)
 void
 json_object_unref (JsonObject *object)
 {
-  gint old_ref;
-
   g_return_if_fail (object != NULL);
   g_return_if_fail (object->ref_count > 0);
 
-  old_ref = g_atomic_int_get (&object->ref_count);
-  if (old_ref > 1)
-    g_atomic_int_compare_and_exchange (&object->ref_count, old_ref, old_ref - 1);
-  else
+  if (g_atomic_int_dec_and_test (&object->ref_count))
     {
       g_list_free (object->members_ordered);
       g_hash_table_destroy (object->members);
@@ -145,6 +126,18 @@ object_set_member_internal (JsonObject  *object,
 
   if (g_hash_table_lookup (object->members, name) == NULL)
     object->members_ordered = g_list_prepend (object->members_ordered, name);
+  else
+    {
+      GList *l;
+
+      /* if the member already exists then we need to replace the
+       * pointer to its name, to avoid keeping invalid pointers
+       * once we replace the key in the hash table
+       */
+      l = g_list_find_custom (object->members_ordered, name, (GCompareFunc) strcmp);
+      if (l != NULL)
+        l->data = name;
+    }
 
   g_hash_table_replace (object->members, name, node);
 }
@@ -153,7 +146,7 @@ object_set_member_internal (JsonObject  *object,
  * json_object_add_member:
  * @object: a #JsonObject
  * @member_name: the name of the member
- * @node: the value of the member
+ * @node: (transfer full): the value of the member
  *
  * Adds a member named @member_name and containing @node into a #JsonObject.
  * The object will take ownership of the #JsonNode.
@@ -187,7 +180,7 @@ json_object_add_member (JsonObject  *object,
  * json_object_set_member:
  * @object: a #JsonObject
  * @member_name: the name of the member
- * @node: the value of the member
+ * @node: (transfer full): the value of the member
  *
  * Sets @node as the value of @member_name inside @object.
  *
@@ -202,10 +195,20 @@ json_object_set_member (JsonObject  *object,
                         const gchar *member_name,
                         JsonNode    *node)
 {
+  JsonNode *old_node;
+
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
   g_return_if_fail (node != NULL);
 
+  old_node = g_hash_table_lookup (object->members, member_name);
+  if (old_node == NULL)
+    goto set_member;
+
+  if (old_node == node)
+    return;
+
+set_member:
   object_set_member_internal (object, member_name, node);
 }
 
@@ -227,14 +230,10 @@ json_object_set_int_member (JsonObject  *object,
                             const gchar *member_name,
                             gint64       value)
 {
-  JsonNode *node;
-
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_int (node, value);
-  object_set_member_internal (object, member_name, node);
+  object_set_member_internal (object, member_name, json_node_init_int (json_node_alloc (), value));
 }
 
 /**
@@ -255,14 +254,10 @@ json_object_set_double_member (JsonObject  *object,
                                const gchar *member_name,
                                gdouble      value)
 {
-  JsonNode *node;
-
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_double (node, value);
-  object_set_member_internal (object, member_name, node);
+  object_set_member_internal (object, member_name, json_node_init_double (json_node_alloc (), value));
 }
 
 /**
@@ -283,14 +278,10 @@ json_object_set_boolean_member (JsonObject  *object,
                                 const gchar *member_name,
                                 gboolean     value)
 {
-  JsonNode *node;
-
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_boolean (node, value);
-  object_set_member_internal (object, member_name, node);
+  object_set_member_internal (object, member_name, json_node_init_boolean (json_node_alloc (), value));
 }
 
 /**
@@ -316,8 +307,13 @@ json_object_set_string_member (JsonObject  *object,
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
 
-  node = json_node_new (JSON_NODE_VALUE);
-  json_node_set_string (node, value);
+  node = json_node_alloc ();
+
+  if (value != NULL)
+    json_node_init_string (node, value);
+  else
+    json_node_init_null (node);
+
   object_set_member_internal (object, member_name, node);
 }
 
@@ -337,20 +333,17 @@ void
 json_object_set_null_member (JsonObject  *object,
                              const gchar *member_name)
 {
-  JsonNode *node;
-
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
 
-  node = json_node_new (JSON_NODE_NULL);
-  object_set_member_internal (object, member_name, node);
+  object_set_member_internal (object, member_name, json_node_init_null (json_node_alloc ()));
 }
 
 /**
  * json_object_set_array_member:
  * @object: a #JsonObject
  * @member_name: the name of the member
- * @value: the value of the member
+ * @value: (transfer full): the value of the member
  *
  * Convenience function for setting an array @value of
  * @member_name inside @object.
@@ -371,8 +364,16 @@ json_object_set_array_member (JsonObject  *object,
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
 
-  node = json_node_new (JSON_NODE_ARRAY);
-  json_node_take_array (node, value);
+  node = json_node_alloc ();
+
+  if (value != NULL)
+    {
+      json_node_init_array (node, value);
+      json_array_unref (value);
+    }
+  else
+    json_node_init_null (node);
+
   object_set_member_internal (object, member_name, node);
 }
 
@@ -380,7 +381,7 @@ json_object_set_array_member (JsonObject  *object,
  * json_object_set_object_member:
  * @object: a #JsonObject
  * @member_name: the name of the member
- * @value: the value of the member
+ * @value: (transfer full): the value of the member
  *
  * Convenience function for setting an object @value of
  * @member_name inside @object.
@@ -401,8 +402,16 @@ json_object_set_object_member (JsonObject  *object,
   g_return_if_fail (object != NULL);
   g_return_if_fail (member_name != NULL);
 
-  node = json_node_new (JSON_NODE_OBJECT);
-  json_node_take_object (node, value);
+  node = json_node_alloc ();
+
+  if (value != NULL)
+    {
+      json_node_init_object (node, value);
+      json_object_unref (value);
+    }
+  else
+    json_node_init_null (node);
+
   object_set_member_internal (object, member_name, node);
 }
 
@@ -438,7 +447,7 @@ json_object_get_members (JsonObject *object)
  * Retrieves all the values of the members of a #JsonObject.
  *
  * Return value: (element-type JsonNode) (transfer container): a #GList of
- *   #JsonNode<!-- -->s. The content of the list is owned by the #JsonObject
+ *   #JsonNodes. The content of the list is owned by the #JsonObject
  *   and should never be modified or freed. When you have finished using the
  *   returned list, use g_list_free() to free the resources it has allocated.
  */
@@ -464,7 +473,7 @@ json_object_get_values (JsonObject *object)
  * Retrieves a copy of the #JsonNode containing the value of @member_name
  * inside a #JsonObject
  *
- * Return value: (transfer full) a copy of the node for the requested
+ * Return value: (transfer full): a copy of the node for the requested
  *   object member or %NULL. Use json_node_free() when done.
  *
  * Since: 0.6
@@ -500,7 +509,7 @@ object_get_member_internal (JsonObject  *object,
  * Retrieves the #JsonNode containing the value of @member_name inside
  * a #JsonObject.
  *
- * Return value: a pointer to the node for the requested object
+ * Return value: (transfer none): a pointer to the node for the requested object
  *   member, or %NULL
  */
 JsonNode *
@@ -629,7 +638,16 @@ json_object_get_null_member (JsonObject  *object,
   node = object_get_member_internal (object, member_name);
   g_return_val_if_fail (node != NULL, FALSE);
 
-  return JSON_NODE_TYPE (node) == JSON_NODE_NULL;
+  if (JSON_NODE_HOLDS_NULL (node))
+    return TRUE;
+
+  if (JSON_NODE_HOLDS_OBJECT (node))
+    return json_node_get_object (node) == NULL;
+
+  if (JSON_NODE_HOLDS_ARRAY (node))
+    return json_node_get_array (node) == NULL;
+
+  return FALSE;
 }
 
 /**
@@ -646,15 +664,9 @@ json_object_get_null_member (JsonObject  *object,
  *
  * Since: 0.8
  */
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-G_CONST_RETURN gchar *
-json_object_get_string_member (JsonObject  *object,
-                               const gchar *member_name)
-#else
 const gchar *
 json_object_get_string_member (JsonObject  *object,
                                const gchar *member_name)
-#endif
 {
   JsonNode *node;
 
@@ -663,7 +675,10 @@ json_object_get_string_member (JsonObject  *object,
 
   node = object_get_member_internal (object, member_name);
   g_return_val_if_fail (node != NULL, NULL);
-  g_return_val_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_VALUE, NULL);
+  g_return_val_if_fail (JSON_NODE_HOLDS_VALUE (node) || JSON_NODE_HOLDS_NULL (node), NULL);
+
+  if (JSON_NODE_HOLDS_NULL (node))
+    return NULL;
 
   return json_node_get_string (node);
 }
@@ -693,7 +708,10 @@ json_object_get_array_member (JsonObject  *object,
 
   node = object_get_member_internal (object, member_name);
   g_return_val_if_fail (node != NULL, NULL);
-  g_return_val_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_ARRAY, NULL);
+  g_return_val_if_fail (JSON_NODE_HOLDS_ARRAY (node) || JSON_NODE_HOLDS_NULL (node), NULL);
+
+  if (JSON_NODE_HOLDS_NULL (node))
+    return NULL;
 
   return json_node_get_array (node);
 }
@@ -723,7 +741,10 @@ json_object_get_object_member (JsonObject  *object,
 
   node = object_get_member_internal (object, member_name);
   g_return_val_if_fail (node != NULL, NULL);
-  g_return_val_if_fail (JSON_NODE_TYPE (node) == JSON_NODE_OBJECT, NULL);
+  g_return_val_if_fail (JSON_NODE_HOLDS_OBJECT (node) || JSON_NODE_HOLDS_NULL (node), NULL);
+
+  if (JSON_NODE_HOLDS_NULL (node))
+    return NULL;
 
   return json_node_get_object (node);
 }
@@ -796,8 +817,8 @@ json_object_remove_member (JsonObject  *object,
 /**
  * json_object_foreach_member:
  * @object: a #JsonObject
- * @func: the function to be called on each member
- * @data: data to be passed to the function
+ * @func: (scope call): the function to be called on each member
+ * @data: (closure): data to be passed to the function
  *
  * Iterates over all members of @object and calls @func on
  * each one of them.

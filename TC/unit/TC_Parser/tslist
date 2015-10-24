@@ -1,7 +1,0 @@
-/unit/TC_Parser/utc_libjson_json_parser_new_func
-/unit/TC_Parser/utc_libjson_json_parser_load_from_file_func
-/unit/TC_Parser/utc_libjson_json_parser_load_from_data_func
-/unit/TC_Parser/utc_libjson_json_parser_get_root_func
-/unit/TC_Parser/utc_libjson_json_parser_get_current_line_func
-/unit/TC_Parser/utc_libjson_json_parser_get_current_pos_func
-/unit/TC_Parser/utc_libjson_json_parser_has_assignment_func

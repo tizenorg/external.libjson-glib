@@ -1,29 +1,35 @@
-include $(top_srcdir)/build/autotools/Makefile.am.gtest
-include $(top_srcdir)/build/autotools/Makefile.am.silent
+include $(top_srcdir)/build/autotools/glib-tap.mk
 
-NULL =
-
-INCLUDES = \
-	-I$(top_srcdir)			\
-	-I$(top_srcdir)/json-glib	\
+AM_CFLAGS = -g $(JSON_CFLAGS) $(MAINTAINER_CFLAGS)
+LDADD = $(top_builddir)/json-glib//libjson-glib-1.0.la $(JSON_LIBS)
+AM_CPPFLAGS = \
+	$(JSON_DEBUG_CFLAGS) \
+	-DG_LOG_DOMAIN=\"Json\" \
+	-I$(top_srcdir)	\
+	-I$(top_builddir) \
+	-I$(top_srcdir)/json-glib \
+	-I$(top_builddir)/json-glib \
 	$(NULL)
 
-AM_CPPFLAGS = $(JSON_DEBUG_CFLAGS)
-AM_CFLAGS = -g $(JSON_CFLAGS)
-AM_LDFLAGS = $(JSON_LIBS)
+dist_test_data = \
+	stream-load.json	\
+	$(NULL)
 
-noinst_PROGRAMS = $(TEST_PROGS)
-progs_ldadd = $(top_builddir)/json-glib/libjson-glib-1.0.la
+test_programs = \
+	array			\
+	boxed			\
+	builder			\
+	generator		\
+	gvariant		\
+	invalid			\
+	node			\
+	object			\
+	parser			\
+	path			\
+	reader			\
+	serialize-simple	\
+	serialize-complex	\
+	serialize-full		\
+	$(NULL)
 
-TEST_PROGS          += array-test
-array_test_SOURCES   = array-test.c
-array_test_LDADD     = $(progs_ldadd)
-
-TEST_PROGS          += object-test
-object_test_SOURCES  = object-test.c
-object_test_LDADD    = $(progs_ldadd)
-
-TEST_PROGS          += node-test
-node_test_SOURCES    = node-test.c
-node_test_LDADD      = $(progs_ldadd)
-
+include $(top_srcdir)/build/autotools/Makefile.am.gitignore

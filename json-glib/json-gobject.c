@@ -21,8 +21,8 @@
  * SECTION:json-gobject
  * @short_description: Serialize and deserialize GObjects
  *
- * JSON-GLib provides API for serializing and deserializing #GObject<!-- -->s
- * to and from JSON data streams.
+ * JSON-GLib provides API for serializing and deserializing #GObject
+ * instances to and from JSON data streams.
  *
  * Simple #GObject classes can be (de)serialized into JSON objects, if the
  * properties have compatible types with the native JSON types (integers,
@@ -32,16 +32,17 @@
  * and its virtual functions.
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <string.h>
 #include <stdlib.h>
 
+#include <glib/gi18n-lib.h>
+
 #include "json-types-private.h"
 #include "json-gobject-private.h"
 
+#include "json-debug.h"
 #include "json-parser.h"
 #include "json-generator.h"
 
@@ -179,7 +180,9 @@ json_gobject_new (GType       gtype,
 {
   JsonSerializableIface *iface = NULL;
   JsonSerializable *serializable = NULL;
+  gboolean find_property;
   gboolean deserialize_property;
+  gboolean set_property;
   GList *members, *members_left, *l;
   guint n_members;
   GObjectClass *klass;
@@ -193,13 +196,11 @@ json_gobject_new (GType       gtype,
   members = json_object_get_members (object);
   members_left = NULL;
 
-  /* first pass: construct and construct-only properties; here
-   * we cannot use Serializable because we don't have an
-   * instance yet; we use the default implementation of
-   * json_deserialize_pspec() to deserialize known types
+  /* first pass: construct-only properties; here we cannot use Serializable
+   * because we don't have an instance yet; we use the default implementation
+   * of json_deserialize_pspec() to deserialize known types
    *
-   * FIXME - find a way to allow deserialization for these
-   * properties
+   * FIXME - find a way to allow deserialization for these properties
    */
   construct_params = g_array_sized_new (FALSE, FALSE, sizeof (GParameter), n_members);
 
@@ -215,8 +216,8 @@ json_gobject_new (GType       gtype,
       if (!pspec)
         goto next_member;
 
-      if (!(pspec->flags & G_PARAM_CONSTRUCT_ONLY) ||
-          !(pspec->flags & G_PARAM_CONSTRUCT_ONLY))
+      /* we only apply construct-only properties here */
+      if ((pspec->flags & G_PARAM_CONSTRUCT_ONLY) == 0)
         goto next_member;
 
       if (!(pspec->flags & G_PARAM_WRITABLE))
@@ -227,7 +228,12 @@ json_gobject_new (GType       gtype,
       val = json_object_get_member (object, member_name);
       res = json_deserialize_pspec (&param.value, pspec, val);
       if (!res)
-        g_value_unset (&param.value);
+	{
+	  g_warning ("Failed to deserialize \"%s\" property of type \"%s\" for an object of type \"%s\"",
+		     pspec->name, G_VALUE_TYPE_NAME (&param.value), g_type_name (gtype));
+
+	  g_value_unset (&param.value);
+	}
       else
         {
           param.name = g_strdup (pspec->name);
@@ -267,10 +273,16 @@ json_gobject_new (GType       gtype,
     {
       serializable = JSON_SERIALIZABLE (retval);
       iface = JSON_SERIALIZABLE_GET_IFACE (serializable);
+      find_property = (iface->find_property != NULL);
       deserialize_property = (iface->deserialize_property != NULL);
+      set_property = (iface->set_property != NULL);
     }
   else
-    deserialize_property = FALSE;
+    {
+      find_property = FALSE;
+      deserialize_property = FALSE;
+      set_property = FALSE;
+    }
 
   g_object_freeze_notify (retval);
 
@@ -282,13 +294,16 @@ json_gobject_new (GType       gtype,
       GValue value = { 0, };
       gboolean res = FALSE;
 
-      pspec = g_object_class_find_property (klass, member_name);
-      if (!pspec)
+      if (find_property)
+        pspec = json_serializable_find_property (serializable, member_name);
+      else
+        pspec = g_object_class_find_property (klass, member_name);
+
+      if (pspec == NULL)
         continue;
 
       /* we should have dealt with these above */
-      if ((pspec->flags & G_PARAM_CONSTRUCT_ONLY) ||
-          (pspec->flags & G_PARAM_CONSTRUCT))
+      if (pspec->flags & G_PARAM_CONSTRUCT_ONLY)
         continue;
 
       if (!(pspec->flags & G_PARAM_WRITABLE))
@@ -300,20 +315,34 @@ json_gobject_new (GType       gtype,
 
       if (deserialize_property)
         {
-          res = iface->deserialize_property (serializable, pspec->name,
-                                             &value,
-                                             pspec,
-                                             val);
+          JSON_NOTE (GOBJECT, "Using JsonSerializable for property '%s'", pspec->name);
+          res = json_serializable_deserialize_property (serializable,
+                                                        pspec->name,
+                                                        &value,
+                                                        pspec,
+                                                        val);
         }
 
       if (!res)
-        res = json_deserialize_pspec (&value, pspec, val);
+        {
+          JSON_NOTE (GOBJECT, "Using json_deserialize_pspec for property '%s'", pspec->name);
+          res = json_deserialize_pspec (&value, pspec, val);
+        }
 
-      /* FIXME - we probably want to be able to have a custom
-       * set_property() for Serializable implementations
-       */
       if (res)
-        g_object_set_property (retval, pspec->name, &value);
+        {
+          JSON_NOTE (GOBJECT, "Calling set_property('%s', '%s')",
+                     pspec->name,
+                     g_type_name (G_VALUE_TYPE (&value)));
+
+          if (set_property)
+            json_serializable_set_property (serializable, pspec, &value);
+          else
+            g_object_set_property (retval, pspec->name, &value);
+        }
+      else
+	g_warning ("Failed to deserialize \"%s\" property of type \"%s\" for an object of type \"%s\"",
+		   pspec->name, g_type_name (G_VALUE_TYPE (&value)), g_type_name (gtype));
 
       g_value_unset (&value);
     }
@@ -332,7 +361,9 @@ json_gobject_dump (GObject *gobject)
 {
   JsonSerializableIface *iface = NULL;
   JsonSerializable *serializable = NULL;
+  gboolean list_properties = FALSE;
   gboolean serialize_property = FALSE;
+  gboolean get_property = FALSE;
   JsonObject *object;
   GParamSpec **pspecs;
   guint n_pspecs, i;
@@ -341,12 +372,18 @@ json_gobject_dump (GObject *gobject)
     {
       serializable = JSON_SERIALIZABLE (gobject);
       iface = JSON_SERIALIZABLE_GET_IFACE (gobject);
+      list_properties = (iface->list_properties != NULL);
       serialize_property = (iface->serialize_property != NULL);
+      get_property = (iface->get_property != NULL);
     }
 
   object = json_object_new ();
 
-  pspecs = g_object_class_list_properties (G_OBJECT_GET_CLASS (gobject), &n_pspecs);
+  if (list_properties)
+    pspecs = json_serializable_list_properties (serializable, &n_pspecs);
+  else
+    pspecs = g_object_class_list_properties (G_OBJECT_GET_CLASS (gobject), &n_pspecs);
+
   for (i = 0; i < n_pspecs; i++)
     {
       GParamSpec *pspec = pspecs[i];
@@ -358,7 +395,11 @@ json_gobject_dump (GObject *gobject)
         continue;
 
       g_value_init (&value, G_PARAM_SPEC_VALUE_TYPE (pspec));
-      g_object_get_property (gobject, pspec->name, &value);
+
+      if (get_property)
+        json_serializable_get_property (serializable, pspec, &value);
+      else
+        g_object_get_property (gobject, pspec->name, &value);
 
       /* if there is a serialization vfunc, then it is completely responsible
        * for serializing the property, possibly by calling the implementation
@@ -366,11 +407,13 @@ json_gobject_dump (GObject *gobject)
        */
       if (serialize_property)
         {
-          node = iface->serialize_property (serializable, pspec->name,
-                                            &value,
-                                            pspec);
+          node = json_serializable_serialize_property (serializable,
+                                                       pspec->name,
+                                                       &value,
+                                                       pspec);
         }
-      else
+      /* skip if the value is the default for the property */
+      else if (!g_param_value_defaults (pspec, &value))
         node = json_serialize_pspec (&value, pspec);
 
       if (node)
@@ -470,35 +513,73 @@ json_deserialize_pspec (GValue     *value,
         {
         case G_TYPE_BOOLEAN:
         case G_TYPE_INT64:
-        case G_TYPE_DOUBLE:
         case G_TYPE_STRING:
-          g_value_copy (&node_value, value);
-          retval = TRUE;
+	  if (G_VALUE_HOLDS (&node_value, G_VALUE_TYPE (value)))
+	    {
+	      g_value_copy (&node_value, value);
+	      retval = TRUE;
+	    }
           break;
 
         case G_TYPE_INT:
-          g_value_set_int (value, (gint) g_value_get_int64 (&node_value));
-          retval = TRUE;
+	  if (G_VALUE_HOLDS (&node_value, G_TYPE_INT64))
+	    {
+	      g_value_set_int (value, (gint) g_value_get_int64 (&node_value));
+	      retval = TRUE;
+	    }
           break;
 
         case G_TYPE_CHAR:
-          g_value_set_char (value, (gchar) g_value_get_int64 (&node_value));
-          retval = TRUE;
+	  if (G_VALUE_HOLDS (&node_value, G_TYPE_INT64))
+	    {
+	      g_value_set_schar (value, (gchar) g_value_get_int64 (&node_value));
+	      retval = TRUE;
+	    }
           break;
 
         case G_TYPE_UINT:
-          g_value_set_uint (value, (guint) g_value_get_int64 (&node_value));
-          retval = TRUE;
+	  if (G_VALUE_HOLDS (&node_value, G_TYPE_INT64))
+	    {
+	      g_value_set_uint (value, (guint) g_value_get_int64 (&node_value));
+	      retval = TRUE;
+	    }
           break;
 
         case G_TYPE_UCHAR:
-          g_value_set_uchar (value, (guchar) g_value_get_int64 (&node_value));
-          retval = TRUE;
+	  if (G_VALUE_HOLDS (&node_value, G_TYPE_INT64))
+	    {
+	      g_value_set_uchar (value, (guchar) g_value_get_int64 (&node_value));
+	      retval = TRUE;
+	    }
+          break;
+
+        case G_TYPE_DOUBLE:
+
+	  if (G_VALUE_HOLDS (&node_value, G_TYPE_DOUBLE))
+	    {
+	      g_value_set_double (value, g_value_get_double (&node_value));
+	      retval = TRUE;
+	    }
+	  else if (G_VALUE_HOLDS (&node_value, G_TYPE_INT64))
+	    {
+	      g_value_set_double (value, (gdouble) g_value_get_int64 (&node_value));
+	      retval = TRUE;
+	    }
+
           break;
 
         case G_TYPE_FLOAT:
-          g_value_set_float (value, (gfloat) g_value_get_double (&node_value));
-          retval = TRUE;
+	  if (G_VALUE_HOLDS (&node_value, G_TYPE_DOUBLE))
+	    {
+	      g_value_set_float (value, (gfloat) g_value_get_double (&node_value));
+	      retval = TRUE;
+	    }
+	  else if (G_VALUE_HOLDS (&node_value, G_TYPE_INT64))
+	    {
+	      g_value_set_float (value, (gfloat) g_value_get_int64 (&node_value));
+	      retval = TRUE;
+	    }
+
           break;
 
         case G_TYPE_ENUM:
@@ -552,7 +633,19 @@ json_deserialize_pspec (GValue     *value,
       break;
 
     case JSON_NODE_NULL:
-      retval = FALSE;
+      if (G_TYPE_FUNDAMENTAL (G_VALUE_TYPE (value)) == G_TYPE_STRING)
+	{
+	  g_value_set_string (value, NULL);
+	  retval = TRUE;
+	}
+      else if (G_TYPE_FUNDAMENTAL (G_VALUE_TYPE (value)) == G_TYPE_OBJECT)
+	{
+	  g_value_set_object (value, NULL);
+	  retval = TRUE;
+	}
+      else
+	retval = FALSE;
+
       break;
     }
 
@@ -564,44 +657,66 @@ json_serialize_pspec (const GValue *real_value,
                       GParamSpec   *pspec)
 {
   JsonNode *retval = NULL;
-  GValue value = { 0, };
   JsonNodeType node_type;
 
   switch (G_TYPE_FUNDAMENTAL (G_VALUE_TYPE (real_value)))
     {
+    /* JSON native types */
     case G_TYPE_INT64:
+      retval = json_node_init_int (json_node_alloc (), g_value_get_int64 (real_value));
+      break;
+
     case G_TYPE_BOOLEAN:
+      retval = json_node_init_boolean (json_node_alloc (), g_value_get_boolean (real_value));
+      break;
+
     case G_TYPE_DOUBLE:
-      /* JSON native types */
-      retval = json_node_new (JSON_NODE_VALUE);
-      g_value_init (&value, G_VALUE_TYPE (real_value));
-      g_value_copy (real_value, &value);
-      json_node_set_value (retval, &value);
-      g_value_unset (&value);
+      retval = json_node_init_double (json_node_alloc (), g_value_get_double (real_value));
       break;
 
     case G_TYPE_STRING:
-      /* strings might be NULL, so we handle it differently */
-      if (!g_value_get_string (real_value))
-        retval = json_node_new (JSON_NODE_NULL);
-      else
-        {
-          retval = json_node_new (JSON_NODE_VALUE);
-          json_node_set_string (retval, g_value_get_string (real_value));
-          break;
-        }
+      retval = json_node_init_string (json_node_alloc (), g_value_get_string (real_value));
       break;
 
+    /* auto-promoted types */
     case G_TYPE_INT:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_int (real_value));
+      retval = json_node_init_int (json_node_alloc (), g_value_get_int (real_value));
+      break;
+
+    case G_TYPE_UINT:
+      retval = json_node_init_int (json_node_alloc (), g_value_get_uint (real_value));
+      break;
+
+    case G_TYPE_LONG:
+      retval = json_node_init_int (json_node_alloc (), g_value_get_long (real_value));
+      break;
+
+    case G_TYPE_ULONG:
+      retval = json_node_init_int (json_node_alloc (), g_value_get_ulong (real_value));
       break;
 
     case G_TYPE_FLOAT:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_double (retval, g_value_get_float (real_value));
+      retval = json_node_init_double (json_node_alloc (), g_value_get_float (real_value));
       break;
 
+    case G_TYPE_CHAR:
+      retval = json_node_alloc ();
+      json_node_init_int (retval, g_value_get_schar (real_value));
+      break;
+
+    case G_TYPE_UCHAR:
+      retval = json_node_init_int (json_node_alloc (), g_value_get_uchar (real_value));
+      break;
+
+    case G_TYPE_ENUM:
+      retval = json_node_init_int (json_node_alloc (), g_value_get_enum (real_value));
+      break;
+
+    case G_TYPE_FLAGS:
+      retval = json_node_init_int (json_node_alloc (), g_value_get_flags (real_value));
+      break;
+
+    /* complex types */
     case G_TYPE_BOXED:
       if (G_VALUE_HOLDS (real_value, G_TYPE_STRV))
         {
@@ -620,8 +735,8 @@ json_serialize_pspec (const GValue *real_value,
               json_array_add_element (array, str);
             }
 
-          retval = json_node_new (JSON_NODE_ARRAY);
-          json_node_take_array (retval, array);
+          retval = json_node_init_array (json_node_alloc (), array);
+          json_array_unref (array);
         }
       else if (json_boxed_can_serialize (G_VALUE_TYPE (real_value), &node_type))
         {
@@ -634,52 +749,19 @@ json_serialize_pspec (const GValue *real_value,
                    g_type_name (G_VALUE_TYPE (real_value)));
       break;
 
-    case G_TYPE_UINT:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_uint (real_value));
-      break;
-
-    case G_TYPE_LONG:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_long (real_value));
-      break;
-
-    case G_TYPE_ULONG:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_long (real_value));
-      break;
-
-    case G_TYPE_CHAR:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_char (real_value));
-      break;
-
-    case G_TYPE_UCHAR:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_uchar (real_value));
-      break;
-
-    case G_TYPE_ENUM:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_enum (real_value));
-      break;
-
-    case G_TYPE_FLAGS:
-      retval = json_node_new (JSON_NODE_VALUE);
-      json_node_set_int (retval, g_value_get_flags (real_value));
-      break;
-
     case G_TYPE_OBJECT:
       {
         GObject *object = g_value_get_object (real_value);
 
+        retval = json_node_alloc ();
+
         if (object != NULL)
           {
-            retval = json_node_new (JSON_NODE_OBJECT);
+            json_node_init (retval, JSON_NODE_OBJECT);
             json_node_take_object (retval, json_gobject_dump (object));
           }
         else
-          retval = json_node_new (JSON_NODE_NULL);
+          json_node_init_null (retval);
       }
       break;
 
@@ -762,7 +844,7 @@ json_gobject_serialize (GObject *gobject)
  *
  * Note: the JSON data stream must be an object declaration.
  *
- * Return value: a #GObject or %NULL
+ * Return value: (transfer full): a #GObject or %NULL
  *
  * Since: 0.4
  *
@@ -792,7 +874,7 @@ json_construct_gobject (GType         gtype,
  *
  * Note: the JSON data stream must be an object declaration.
  *
- * Return value: a #GObject or %NULL
+ * Return value: (transfer full): a #GObject or %NULL
  *
  * Since: 0.10
  */
@@ -827,10 +909,10 @@ json_gobject_from_data (GType         gtype,
   root = json_parser_get_root (parser);
   if (root == NULL || JSON_NODE_TYPE (root) != JSON_NODE_OBJECT)
     {
+      /* translators: the %s is the name of the data structure */
       g_set_error (error, JSON_PARSER_ERROR,
                    JSON_PARSER_ERROR_PARSE,
-                   "Expecting a JSON object, but the root node "
-                   "is of type `%s'",
+                   _("Expecting a JSON object, but the root node is of type `%s'"),
                    json_node_type_name (root));
       g_object_unref (parser);
       return NULL;

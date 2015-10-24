@@ -16,7 +16,7 @@ DOC_MAIN_SGML_FILE = $(DOC_MODULE)-docs.xml
 DOC_SOURCE_DIR = ../../json-glib
 
 # Extra options to pass to gtkdoc-scangobj. Not normally needed.
-SCANGOBJ_OPTIONS = --type-init-func="g_type_init()"
+SCANGOBJ_OPTIONS =
 
 # Extra options to supply to gtkdoc-scan.
 # e.g. SCAN_OPTIONS=--deprecated-guards="GTK_DISABLE_DEPRECATED" 
@@ -24,7 +24,7 @@ SCAN_OPTIONS = --deprecated-guards="JSON_DISABLE_DEPRECATED"
 
 # Extra options to supply to gtkdoc-mkdb.
 # e.g. MKDB_OPTIONS=--sgml-mode --output-format=xml
-MKDB_OPTIONS = --sgml-mode --output-format=xml --name-space=json
+MKDB_OPTIONS = --output-format=xml --name-space=json
 
 # Extra options to supply to gtkdoc-mktmpl
 # e.g. MKTMPL_OPTIONS=--only-section-tmpl
@@ -34,7 +34,8 @@ MKTMPL_OPTIONS =
 # e.g. FIXXREF_OPTIONS=--extra-dir=../gdk-pixbuf/html --extra-dir=../gdk/html
 FIXXREF_OPTIONS = \
 	--extra-dir=$(GLIB_PREFIX)/share/gtk-doc/html/glib \
-	--extra-dir=$(GLIB_PREFIX)/share/gtk-doc/html/gobject
+	--extra-dir=$(GLIB_PREFIX)/share/gtk-doc/html/gobject \
+	--extra-dir=$(GLIB_PREFIX)/share/gtk-doc/html/gio
 
 # Used for dependencies. The docs will be rebuilt if any of these change.
 # e.g. HFILE_GLOB=$(top_srcdir)/gtk/*.h
@@ -51,7 +52,8 @@ IGNORE_HFILES = \
 	json-private.h 		\
 	json-marshal.h 		\
 	json-glib.h 		\
-	json-enum-types.h
+	json-enum-types.h	\
+	json-debug.h
 
 EXTRA_HFILES =
 
@@ -61,7 +63,10 @@ HTML_IMAGES =
 
 # Extra SGML files that are included by $(DOC_MAIN_SGML_FILE).
 # e.g. content_files=running.sgml building.sgml changes-2.0.sgml
-content_files = version.xml
+content_files = \
+	json-glib-format.xml \
+	json-glib-validate.xml \
+	version.xml
 
 # SGML files where gtk-doc abbrevations (#GtkWidget) are expanded
 # These files must be listed here *and* in content_files
@@ -74,23 +79,34 @@ expand_content_files =
 # e.g. INCLUDES=-I$(top_srcdir) -I$(top_builddir) $(GTK_DEBUG_FLAGS)
 # e.g. GTKDOC_LIBS=$(top_builddir)/gtk/$(gtktargetlib)
 
-INCLUDES = -I$(top_srcdir) -I$(top_builddir) $(JSON_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_builddir) $(JSON_CFLAGS)
 GTKDOC_LIBS = $(top_builddir)/json-glib/libjson-glib-1.0.la $(JSON_LIBS)
-
-# needed to avoid including Makefile.am.gtest which redeclares
-# EXTRA_DIST and generates a warning when the gtk-doc.make include
-# below
-test-report:
-	@true
-
-test:
-	@true
-
-check-local: test
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.
 include $(top_srcdir)/gtk-doc.make
 
-# Other files to distribute
-# e.g. EXTRA_DIST += version.xml.in
 EXTRA_DIST += version.xml.in
+
+man_MANS =
+
+if ENABLE_MAN
+man_MANS += \
+	json-glib-format.1 \
+	json-glib-validate.1
+
+XSLTPROC_FLAGS = \
+	--nonet \
+	--stringparam man.output.quietly 1 \
+	--stringparam funcsynopsis.style ansi \
+	--stringparam man.th.extra1.suppress 1 \
+	--stringparam man.authors.section.enabled 0 \
+	--stringparam man.copyright.section.enabled 0
+
+.xml.1:
+	$(AM_V_GEN) $(XSLTPROC) $(XSLTPROC_FLAGS) http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
+
+endif
+
+CLEANFILES ?=
+CLEANFILES += $(man_MANS)
+EXTRA_DIST += $(man_MANS)

@@ -1,23 +1,12 @@
 EXTRA_DIST = \
-	shave-libtool.in 	\
-	shave.in 		\
-	shave.m4 		\
 	as-compiler-flag.m4	\
+	as-linguas.m4		\
+	glib-tap.mk		\
+	glibtests.m4		\
 	introspection.m4	\
-	Makefile.am.silent	\
+	jh-catalog.m4		\
 	Makefile.am.enums	\
 	Makefile.am.marshal	\
-	Makefile.am.gtest
-
-DISTCLEANFILES = shave-libtool shave
-
-# needed to avoid including Makefile.am.gtest
-test-report:
-	@true
-
-test:
-	@true
-
-check-local: test
-
-.PHONY: test test-report check-local
+	Makefile.am.gitignore	\
+	tap-driver.sh		\
+	tap-test
